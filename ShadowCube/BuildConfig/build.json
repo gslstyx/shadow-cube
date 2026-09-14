@@ -1,6 +1,14 @@
 {
-  "packageName": "com.gslstyx.shadowcube",
-  "companyName": "gslstyx",
-  "productName": "Shadow Cube",
-  "minSdkVersion": 26
+    "packageName": "com.gslstyx.shadowcube",
+    "companyName": "gslstyx",
+    "productName": "Shadow Cube",
+    "minSdkVersion": 26,
+    "obfuscation": {
+        "enabled": true,
+        "level": 1,
+        "managedStrippingLevel": "Medium",
+        "minifyJava": true,
+        "externalCommand": "",
+        "targetAssemblies": "Assembly-CSharp.dll,Assembly-CSharp-firstpass.dll"
+    }
 }

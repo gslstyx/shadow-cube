@@ -21,15 +21,6 @@ namespace ShadowCube.EditorTools
         private const string FallbackScene = "Assets/Scenes/Bootstrap.unity";
 
         [Serializable]
-        private class BuildConfig
-        {
-            public string packageName = "com.defaultcompany.shadowcube";
-            public string companyName = "DefaultCompany";
-            public string productName = "Shadow Cube";
-            public int minSdkVersion = 26;
-        }
-
-        [Serializable]
         private class KeystoreConfig
         {
             public string keystoreName = "";
@@ -44,7 +35,7 @@ namespace ShadowCube.EditorTools
         [MenuItem(MenuRoot + "0) 应用 BuildConfig 配置（包名/产品名，不构建）")]
         public static void ApplyBuildConfig()
         {
-            ApplyCommonSettings(LoadBuildConfig());
+            ApplyCommonSettings(ShadowCubeBuildConfig.Load());
             AssetDatabase.SaveAssets();
             Debug.Log($"[ShadowCube] 已应用配置，包名 = {PlayerSettings.applicationIdentifier}");
         }
@@ -67,11 +58,11 @@ namespace ShadowCube.EditorTools
         private static void Run(Profile profile)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var config = LoadBuildConfig();
+            var config = ShadowCubeBuildConfig.Load();
 
             ApplyCommonSettings(config);
-            if (profile == Profile.Development) ApplyDevelopmentSettings();
-            else ApplyReleaseSettings();
+            if (profile == Profile.Development) ApplyDevelopmentSettings(config);
+            else ApplyReleaseSettings(config);
 
             string version = PlayerSettings.bundleVersion;
             int versionCode = Math.Max(1, PlayerSettings.Android.bundleVersionCode + 1);
@@ -106,7 +97,7 @@ namespace ShadowCube.EditorTools
         }
 
         // ── 设置 ──────────────────────────────────────────────────────────
-        private static void ApplyCommonSettings(BuildConfig config)
+        private static void ApplyCommonSettings(BuildConfigData config)
         {
             EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
 
@@ -123,7 +114,7 @@ namespace ShadowCube.EditorTools
                 new[] { GraphicsDeviceType.Vulkan, GraphicsDeviceType.OpenGLES3 });
         }
 
-        private static void ApplyDevelopmentSettings()
+        private static void ApplyDevelopmentSettings(BuildConfigData config)
         {
             // 联调包：ARM64 + x86_64，覆盖真机（arm）与模拟器（x86_64）
             PlayerSettings.Android.targetArchitectures =
@@ -135,9 +126,11 @@ namespace ShadowCube.EditorTools
             PlayerSettings.Android.useCustomKeystore = false; // 用 debug keystore
 
             SetDefine("SC_DEV", true);
+
+            ApplyHardening(config, enable: false);   // 联调包不做剥离/混淆，保证可调试
         }
 
-        private static void ApplyReleaseSettings()
+        private static void ApplyReleaseSettings(BuildConfigData config)
         {
             // 正式包：64 位架构（ARM64 + x86_64），AAB 上架 Google Play
             PlayerSettings.Android.targetArchitectures =
@@ -149,6 +142,28 @@ namespace ShadowCube.EditorTools
 
             ApplyKeystore(LoadKeystoreConfig());
             SetDefine("SC_DEV", false);
+
+            ApplyHardening(config, enable: true);    // 正式包按 build.json 开启加固/混淆
+        }
+
+        /// <summary>代码加固与混淆（可开关）：引擎代码剥离 + 托管代码剥离 + Java R8</summary>
+        private static void ApplyHardening(BuildConfigData config, bool enable)
+        {
+            var obf = config.obfuscation;
+            bool active = enable && obf.enabled && obf.level >= 1;
+
+            PlayerSettings.stripEngineCode = active;
+            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Android,
+                active ? ShadowCubeBuildConfig.ParseStrippingLevel(obf.managedStrippingLevel)
+                       : ManagedStrippingLevel.Disabled);
+
+            // Java 层压缩/混淆（R8）
+            bool minify = active && obf.minifyJava;
+            PlayerSettings.Android.minifyDebug = false;
+            PlayerSettings.Android.minifyRelease = minify;
+            PlayerSettings.Android.minifyWithR8 = minify;
+
+            Debug.Log($"[ShadowCube] 加固/混淆: {(active ? $"开启(level={obf.level}, stripping={obf.managedStrippingLevel}, R8={obf.minifyJava})" : "关闭")}");
         }
 
         private static void ApplyKeystore(KeystoreConfig ks)
@@ -197,12 +212,6 @@ namespace ShadowCube.EditorTools
             return scenes.ToArray();
         }
 
-        private static BuildConfig LoadBuildConfig()
-        {
-            string path = Path.Combine(ProjectRoot, ConfigDir, BuildConfigFile);
-            if (!File.Exists(path)) return new BuildConfig();
-            return JsonUtility.FromJson<BuildConfig>(File.ReadAllText(path));
-        }
 
         private static KeystoreConfig LoadKeystoreConfig()
         {

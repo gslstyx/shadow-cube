@@ -1,0 +1,17 @@
+<linker>
+  <!-- 托管代码剥离（Managed Stripping）白名单：被反射调用的类型必须保留，否则运行时报找不到类型/方法 -->
+
+  <!-- Addressables / ResourceManager：大量使用反射与 Addressable 地址加载 -->
+  <assembly fullname="Unity.Addressables" preserve="all" />
+  <assembly fullname="Unity.ResourceManager" preserve="all" />
+
+  <!-- Localization：String Table / Asset Table 通过反射与序列化加载 -->
+  <assembly fullname="Unity.Localization" preserve="all" />
+
+  <!-- 自有代码：按需添加通过反射/序列化使用的类型，例如
+  <assembly fullname="Assembly-CSharp">
+    <type fullname="ShadowCube.Data.LevelData" preserve="all" />
+    <type fullname="ShadowCube.Data.SaveData" preserve="all" />
+  </assembly>
+  -->
+</linker>
