@@ -1,18 +1,17 @@
 # ===== Unity =====
-/[Ll]ibrary/
-/[Tt]emp/
-/[Oo]bj/
-/[Bb]uild/
-/[Bb]uilds/
-/[Ll]ogs/
-/[Uu]ser[Ss]ettings/
-/[Mm]emoryCaptures/
-/[Rr]ecordings/
-
-# 资产元数据缓存
-/Assets/AssetStoreTools*
-/Assets/StreamingAssets/aa.meta
-/Assets/StreamingAssets/aa/*
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+[Aa]ssets/AssetStoreTools*
+[Aa]ssets/StreamingAssets/aa.meta
+[Aa]ssets/StreamingAssets/aa/*
+[Aa]ssets/AddressableAssetsData/*/*.bin*
 
 # Unity 自动生成
 *.csproj
