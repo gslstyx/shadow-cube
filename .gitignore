@@ -2,6 +2,7 @@
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
+.utmp/
 [Bb]uild/
 [Bb]uilds/
 [Ll]ogs/
@@ -45,9 +46,12 @@ crashlytics-build.properties
 .DS_Store
 Thumbs.db
 
-# ===== 签名密钥（切勿提交！）=====
+# ===== 签名密钥与构建产物（切勿提交！）=====
 *.keystore
 *.jks
 *.key
 **/LocalProperties/
 google-services.json
+BuildConfig/keystore.json
+[Bb]uild/
+[Bb]uilds/

@@ -7,7 +7,7 @@ public static class ShadowCubeUrpSetup
 {
     public static void Configure()
     {
-        if (GraphicsSettings.renderPipelineAsset != null)
+        if (GraphicsSettings.defaultRenderPipeline != null)
         {
             Debug.Log("[ShadowCube] 已存在渲染管线资产，跳过 URP 配置");
             return;
@@ -22,7 +22,7 @@ public static class ShadowCubeUrpSetup
         var urpAsset = UniversalRenderPipelineAsset.Create(rendererData);
         AssetDatabase.CreateAsset(urpAsset, "Assets/Settings/UniversalRP-Asset.asset");
 
-        GraphicsSettings.renderPipelineAsset = urpAsset;
+        GraphicsSettings.defaultRenderPipeline = urpAsset;
         QualitySettings.renderPipeline = urpAsset;
 
         AssetDatabase.SaveAssets();
