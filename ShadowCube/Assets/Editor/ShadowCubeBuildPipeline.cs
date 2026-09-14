@@ -41,6 +41,14 @@ namespace ShadowCube.EditorTools
         private static string ProjectRoot => Directory.GetParent(Application.dataPath).FullName;
 
         // ── GUI 一键打包入口 ───────────────────────────────────────────────
+        [MenuItem(MenuRoot + "0) 应用 BuildConfig 配置（包名/产品名，不构建）")]
+        public static void ApplyBuildConfig()
+        {
+            ApplyCommonSettings(LoadBuildConfig());
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[ShadowCube] 已应用配置，包名 = {PlayerSettings.applicationIdentifier}");
+        }
+
         [MenuItem(MenuRoot + "1) 一键打包 · 联调测试包 (APK / 全架构 / 可调试)")]
         public static void BuildDevelopment()
         {
