@@ -7,7 +7,8 @@ namespace ShadowCube.Game
 {
     /// <summary>
     /// M1 灰盒：平台 + 方块生成/消除 + 两面墙实时投影 + 过关判定。
-    /// 交互：按住拖拽连续生成/消除；起手列为空 → 生成手势；起手列有方块 → 消除手势；R 键重置。
+    /// 交互：按住拖拽连续生成/消除；起手列为空 → 生成手势，起手列有方块 → 消除手势；R 键或 ResetLevel() 重置。
+    /// 调试：Console 打印投影占用表，Scene 视图显示网格 Gizmo。
     /// </summary>
     public class GameController : MonoBehaviour
     {
@@ -22,19 +23,32 @@ namespace ShadowCube.Game
         public Color platformColor = new Color(0.18f, 0.18f, 0.2f);
         public Color gridColor = new Color(0.45f, 0.55f, 0.65f);
         public Color voxelColor = new Color(0.85f, 0.87f, 0.9f);
+        public Color solvedHighlight = new Color(0.25f, 0.9f, 0.5f);
+
+        [Header("动效")]
+        public float spawnDuration = 0.14f;
+        public float despawnDuration = 0.12f;
+
+        // ── 对外只读状态（供 UI / 测试使用）──────────────
+        public VoxelGrid Grid => _grid;
+        public bool IsSolved => _solved;
+        public int BlockCount => _grid?.Count ?? 0;
+        public int StarRating => _solved && level != null
+            ? LevelJudge.GetStars(_grid.Count, level.OptimalCount) : 0;
 
         private VoxelGrid _grid;
-        private readonly Dictionary<Vector3Int, GameObject> _views = new();
+        private readonly Dictionary<Vector3Int, VoxelView> _views = new();
         private Transform _voxelRoot;
+        private GameObject _hover;
+        private Material _hoverMat;
         private ProjectionWallView _wallLeft;
         private ProjectionWallView _wallFront;
+        private Material _voxelMat;
 
         private bool _dragging;
-        private bool _gestureIsAdd;
+        private GestureRules.Gesture _gesture = GestureRules.Gesture.Add;
         private Vector2Int _lastCell = new(-1, -1);
         private bool _solved;
-
-        private Material _voxelMat;
 
         private void Awake()
         {
@@ -45,10 +59,11 @@ namespace ShadowCube.Game
             }
 
             _grid = level.CreateGrid();
-            _voxelMat = CreateMaterial(voxelColor, false);
+            _voxelMat = CreateMaterial(voxelColor);
 
             BuildPlatform();
             BuildWalls();
+            BuildHover();
             RefreshProjection();
         }
 
@@ -56,7 +71,7 @@ namespace ShadowCube.Game
         {
             if (_grid == null) return;
 
-            HandleInput();
+            HandlePointer();
             if (Input.GetKeyDown(KeyCode.R)) ResetLevel();
         }
 
@@ -68,7 +83,7 @@ namespace ShadowCube.Game
             platform.transform.SetParent(transform, false);
             platform.transform.localScale = new Vector3(level.width * cellSize, 0.1f, level.depth * cellSize);
             platform.transform.localPosition = new Vector3(0f, -0.05f, 0f);
-            platform.GetComponent<Renderer>().sharedMaterial = CreateMaterial(platformColor, false);
+            platform.GetComponent<Renderer>().sharedMaterial = CreateMaterial(platformColor);
 
             _voxelRoot = new GameObject("Voxels").transform;
             _voxelRoot.SetParent(transform, false);
@@ -79,89 +94,172 @@ namespace ShadowCube.Game
             float halfW = level.width * cellSize * 0.5f;
             float halfD = level.depth * cellSize * 0.5f;
 
-            // 左墙（沿 X 方向投影，u = z）
-            var left = new GameObject("Wall_Left");
-            left.transform.SetParent(transform, false);
-            left.transform.position = new Vector3(-halfW - wallGap, 0f, 0f);
-            _wallLeft = left.AddComponent<ProjectionWallView>();
-            _wallLeft.Configure(false, level.depth, level.maxHeight, cellSize, facePositiveX: true);
+            _wallLeft = CreateWall("Wall_Left", new Vector3(-halfW - wallGap, 0f, 0f),
+                isFront: false, uSize: level.depth, facePositiveX: true);
 
-            // 后墙（沿 Z 方向投影，u = x）
-            var front = new GameObject("Wall_Front");
-            front.transform.SetParent(transform, false);
-            front.transform.position = new Vector3(0f, 0f, -halfD - wallGap);
-            _wallFront = front.AddComponent<ProjectionWallView>();
-            _wallFront.Configure(true, level.width, level.maxHeight, cellSize, facePositiveX: false);
+            _wallFront = CreateWall("Wall_Front", new Vector3(0f, 0f, -halfD - wallGap),
+                isFront: true, uSize: level.width, facePositiveX: false);
+        }
+
+        private ProjectionWallView CreateWall(string name, Vector3 position, bool isFront, int uSize, bool facePositiveX)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.transform.position = position;
+            var wall = go.AddComponent<ProjectionWallView>();
+            wall.Configure(isFront, uSize, level.maxHeight, cellSize, facePositiveX);
+            return wall;
+        }
+
+        private void BuildHover()
+        {
+            _hover = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _hover.name = "HoverIndicator";
+            _hover.transform.SetParent(transform, false);
+            _hover.transform.localScale = Vector3.one * cellSize * 0.98f;
+            Destroy(_hover.GetComponent<Collider>());
+            _hoverMat = CreateMaterial(new Color(1f, 1f, 1f, 0.18f), transparent: true);
+            _hover.GetComponent<Renderer>().sharedMaterial = _hoverMat;
+            _hover.SetActive(false);
         }
 
         // ── 输入 ────────────────────────────────────────────────
-        private void HandleInput()
+        private void HandlePointer()
         {
             var cam = Camera.main;
             if (cam == null) return;
 
-            if (Input.GetMouseButtonDown(0))
+            bool pressed = Input.GetMouseButton(0);
+            if (TryPickCell(cam, out var cell, out bool hitVoxel))
             {
-                if (TryGetCell(cam, out var cell))
+                UpdateHover(cell, hitVoxel);
+
+                if (Input.GetMouseButtonDown(0))
                 {
                     _dragging = true;
-                    _gestureIsAdd = _grid.GetTopHeight(cell.x, cell.y) < 0; // 起手列为空 → 生成
+                    _gesture = GestureRules.Decide(hitVoxel || HasVoxelInColumn(cell.x, cell.y));
                     _lastCell = cell;
-                    ApplyAt(cell);
+                    Apply(cell);
                 }
-            }
-            else if (Input.GetMouseButton(0) && _dragging)
-            {
-                if (TryGetCell(cam, out var cell) && cell != _lastCell)
+                else if (pressed && _dragging && cell != _lastCell)
                 {
                     _lastCell = cell;
-                    ApplyAt(cell);
+                    Apply(cell);
                 }
             }
-            else if (Input.GetMouseButtonUp(0))
+            else if (!pressed && _hover != null)
+            {
+                _hover.SetActive(false);
+            }
+
+            if (Input.GetMouseButtonUp(0))
             {
                 _dragging = false;
                 _lastCell = new Vector2Int(-1, -1);
             }
         }
 
-        private bool TryGetCell(Camera cam, out Vector2Int cell)
+        private void UpdateHover(Vector2Int cell, bool hitVoxel)
+        {
+            if (_hover == null) return;
+
+            int y = hitVoxel ? _grid.GetTopHeight(cell.x, cell.y) : _grid.GetNextFreeHeight(cell.x, cell.y);
+            if (y < 0) { _hover.SetActive(false); return; }
+
+            _hover.SetActive(true);
+            _hover.transform.localPosition = CellToWorld(new Vector3Int(cell.x, y, cell.y));
+            _hoverMat.color = _dragging
+                ? new Color(1f, 1f, 1f, 0.10f)
+                : new Color(1f, 1f, 1f, 0.22f);
+        }
+
+        /// <summary>射线拾取：优先命中方块（斜视角下点在堆叠顶部也能取对列），否则命中平台</summary>
+        private bool TryPickCell(Camera cam, out Vector2Int cell, out bool hitVoxel)
         {
             cell = default;
+            hitVoxel = false;
+
             var ray = cam.ScreenPointToRay(Input.mousePosition);
             var plane = new Plane(Vector3.up, Vector3.zero);
-            if (!plane.Raycast(ray, out float dist)) return false;
 
-            var p = ray.GetPoint(dist);
-            int x = Mathf.FloorToInt(p.x / cellSize + level.width * 0.5f);
-            int z = Mathf.FloorToInt(p.z / cellSize + level.depth * 0.5f);
+            Vector3 point;
+            if (Physics.Raycast(ray, out var hit, 200f))
+            {
+                point = hit.point;
+                hitVoxel = hit.collider != null && hit.collider.GetComponent<VoxelView>() != null;
+            }
+            else if (plane.Raycast(ray, out float dist))
+            {
+                point = ray.GetPoint(dist);
+            }
+            else
+            {
+                return false;
+            }
+
+            int x = Mathf.FloorToInt(point.x / cellSize + level.width * 0.5f);
+            int z = Mathf.FloorToInt(point.z / cellSize + level.depth * 0.5f);
             if (x < 0 || x >= level.width || z < 0 || z >= level.depth) return false;
 
             cell = new Vector2Int(x, z);
             return true;
         }
 
-        private void ApplyAt(Vector2Int cell)
+        private void Apply(Vector2Int cell)
         {
-            if (_gestureIsAdd)
-            {
-                int y = _grid.GetNextFreeHeight(cell.x, cell.y);
-                if (y < 0) return;                                  // 该列已满
-                var c = new Vector3Int(cell.x, y, cell.y);
-                if (!_grid.Add(c)) return;
-                SpawnView(c);
-            }
-            else
-            {
-                int y = _grid.GetTopHeight(cell.x, cell.y);
-                if (y < 0) return;
-                var c = new Vector3Int(cell.x, y, cell.y);
-                if (!_grid.Remove(c)) return;
-                DestroyView(c);
-            }
+            if (_gesture == GestureRules.Gesture.Add) AddAt(cell.x, cell.y);
+            else RemoveAt(cell.x, cell.y);
+        }
 
+        // ── 对外可调用的操作（UI / 自动化测试）──────────────────
+        public bool HasVoxelInColumn(int x, int z) => _grid != null && _grid.GetTopHeight(x, z) >= 0;
+
+        public bool AddAt(int x, int z)
+        {
+            if (_grid == null) return false;
+
+            int y = _grid.GetNextFreeHeight(x, z);
+            if (y < 0) return false;
+
+            var c = new Vector3Int(x, y, z);
+            if (!_grid.Add(c)) return false;
+
+            SpawnView(c);
             RefreshProjection();
             CheckSolved();
+            return true;
+        }
+
+        public bool RemoveAt(int x, int z)
+        {
+            if (_grid == null) return false;
+
+            int y = _grid.GetTopHeight(x, z);
+            if (y < 0) return false;
+
+            var c = new Vector3Int(x, y, z);
+            if (!_grid.Remove(c)) return false;
+
+            DespawnView(c);
+            RefreshProjection();
+            CheckSolved();
+            return true;
+        }
+
+        public void ResetLevel()
+        {
+            if (_grid == null) return;
+
+            _grid.Clear();
+            foreach (var kv in _views)
+                if (kv.Value != null) Destroy(kv.Value.gameObject);
+            _views.Clear();
+
+            _solved = false;
+            _wallFront?.SetSolved(false, solvedHighlight);
+            _wallLeft?.SetSolved(false, solvedHighlight);
+            RefreshProjection();
+            Debug.Log("[ShadowCube] 已重置本关");
         }
 
         // ── 视图 ────────────────────────────────────────────────
@@ -171,16 +269,24 @@ namespace ShadowCube.Game
             go.name = $"Voxel_{c.x}_{c.y}_{c.z}";
             go.transform.SetParent(_voxelRoot, false);
             go.transform.localPosition = CellToWorld(c);
-            go.transform.localScale = Vector3.one * cellSize * 0.92f;
             go.GetComponent<Renderer>().sharedMaterial = _voxelMat;
-            Destroy(go.GetComponent<Collider>());
-            _views[c] = go;
+
+            var view = go.AddComponent<VoxelView>();
+            var scale = Vector3.one * cellSize * 0.92f;
+            view.Init(scale, spawnDuration);
+            _views[c] = view;
         }
 
-        private void DestroyView(Vector3Int c)
+        private void DespawnView(Vector3Int c)
         {
-            if (_views.TryGetValue(c, out var go) && go != null) Destroy(go);
+            if (!_views.TryGetValue(c, out var view) || view == null)
+            {
+                _views.Remove(c);
+                return;
+            }
+
             _views.Remove(c);
+            view.PlayDespawn(despawnDuration, () => Destroy(view.gameObject));
         }
 
         private Vector3 CellToWorld(Vector3Int c)
@@ -198,22 +304,13 @@ namespace ShadowCube.Game
 
         private void CheckSolved()
         {
-            if (_solved) return;
-            if (!LevelJudge.IsSolved(_grid, level)) return;
+            if (_solved || !LevelJudge.IsSolved(_grid, level)) return;
 
             _solved = true;
-            int stars = LevelJudge.GetStars(_grid.Count, level.OptimalCount);
-            Debug.Log($"[ShadowCube] 过关！方块 {_grid.Count} / 最优 {level.OptimalCount} → {stars} 星\n{Dump()}");
-        }
+            _wallFront?.SetSolved(true, solvedHighlight);
+            _wallLeft?.SetSolved(true, solvedHighlight);
 
-        public void ResetLevel()
-        {
-            _grid.Clear();
-            foreach (var kv in _views) if (kv.Value != null) Destroy(kv.Value);
-            _views.Clear();
-            _solved = false;
-            RefreshProjection();
-            Debug.Log("[ShadowCube] 已重置本关");
+            Debug.Log($"[ShadowCube] 过关！方块 {_grid.Count} / 最优 {level.OptimalCount} → {StarRating} 星\n{Dump()}");
         }
 
         private string Dump()
@@ -236,10 +333,19 @@ namespace ShadowCube.Game
             }
         }
 
-        private static Material CreateMaterial(Color color, bool transparent)
+        private static Material CreateMaterial(Color color, bool transparent = false)
         {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            return new Material(shader) { color = color };
+            var mat = new Material(shader) { color = color };
+            if (transparent)
+            {
+                mat.SetFloat("_Surface", 1f);
+                mat.SetFloat("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetFloat("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetFloat("_ZWrite", 0f);
+                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            }
+            return mat;
         }
 
         // ── 调试可视化 ─────────────────────────────────────────

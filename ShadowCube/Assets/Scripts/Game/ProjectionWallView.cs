@@ -21,6 +21,7 @@ namespace ShadowCube.Game
         private readonly System.Collections.Generic.List<GameObject> _currents = new();
         private Material _targetMat;
         private Material _currentMat;
+        private static readonly Color _currentBaseColor = new Color(0.06f, 0.06f, 0.06f, 1f);
 
         public void Configure(bool front, int u, int height, float cell, bool facePositiveX)
         {
@@ -37,7 +38,7 @@ namespace ShadowCube.Game
             _currentRoot.SetParent(transform, false);
 
             _targetMat = CreateMaterial(new Color(0.35f, 0.35f, 0.35f, targetAlpha), transparent: true);
-            _currentMat = CreateMaterial(new Color(0.06f, 0.06f, 0.06f, 1f), transparent: false);
+            _currentMat = CreateMaterial(_currentBaseColor, transparent: false);
 
             EnsurePool(_targets, _targetRoot, _targetMat, 0.92f);
             EnsurePool(_currents, _currentRoot, _currentMat, 0.86f);
@@ -47,6 +48,13 @@ namespace ShadowCube.Game
         {
             Apply(_targets, target);
             Apply(_currents, current);
+        }
+
+        /// <summary>过关反馈：当前投影变高亮色</summary>
+        public void SetSolved(bool solved, Color highlight)
+        {
+            if (_currentMat == null) return;
+            _currentMat.color = solved ? highlight : _currentBaseColor;
         }
 
         private void Apply(System.Collections.Generic.List<GameObject> pool, bool[,] table)
