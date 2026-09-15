@@ -25,6 +25,20 @@ namespace ShadowCube.Core
         public static bool[,] ProjectFront(VoxelGrid grid) => Project(grid, true);
         public static bool[,] ProjectLeft(VoxelGrid grid) => Project(grid, false);
 
+        /// <summary>写入已有缓冲区（复用数组，避免每次操作都分配，M4 性能）</summary>
+        public static void ProjectInto(VoxelGrid grid, bool[,] buffer, bool front)
+        {
+            if (grid == null || buffer == null) return;
+
+            System.Array.Clear(buffer, 0, buffer.Length);
+            foreach (var v in grid.Voxels)
+            {
+                int uu = front ? v.x : v.z;
+                if (uu >= 0 && uu < buffer.GetLength(0) && v.y >= 0 && v.y < buffer.GetLength(1))
+                    buffer[uu, v.y] = true;
+            }
+        }
+
         /// <summary>供关卡数据使用：直接由体素集合计算</summary>
         public static bool[,] FromVoxels(IEnumerable<Vector3Int> voxels, int uSize, int maxHeight, bool front)
         {

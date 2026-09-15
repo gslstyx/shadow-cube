@@ -48,6 +48,14 @@ namespace ShadowCube.Game
         public DragTrail Trail { get; private set; }
         public CameraRig Rig { get; private set; }
 
+        /// <summary>平台网格线（运行时可见）</summary>
+        public LineRenderer GridLines { get; private set; }
+
+        private GameObject _platformGo;
+
+        /// <summary>方块对象池中的空闲数量（M4 性能：避免频繁创建/销毁）</summary>
+        public int PooledVoxelCount => _voxelPool.Count;
+
         /// <summary>后墙当前是否显示 X-Y 投影表（随相机旋转变化，供测试/调试）</summary>
         public bool BackWallUsesXY { get; private set; }
         /// <summary>左墙当前是否显示 X-Y 投影表</summary>
@@ -74,6 +82,9 @@ namespace ShadowCube.Game
 
         private VoxelGrid _grid;
         private readonly Dictionary<Vector3Int, VoxelView> _views = new();
+        private readonly Stack<GameObject> _voxelPool = new Stack<GameObject>();
+        private bool[,] _xyBuffer;
+        private bool[,] _zyBuffer;
         private Transform _voxelRoot;
         private GameObject _hover;
         private Material _hoverMat;
@@ -115,6 +126,12 @@ namespace ShadowCube.Game
             }
 
             if (progress == null) progress = FindObjectOfType<ProgressManager>();
+
+            if (_voxelRoot == null)
+            {
+                _voxelRoot = new GameObject("Voxels").transform;
+                _voxelRoot.SetParent(transform, false);
+            }
 
             EnsureRig();
             BuildPlatform();
@@ -158,8 +175,49 @@ namespace ShadowCube.Game
             platform.transform.localPosition = new Vector3(0f, -0.05f, 0f);
             platform.GetComponent<Renderer>().sharedMaterial = CreateMaterial(platformColor);
 
-            _voxelRoot = new GameObject("Voxels").transform;
-            _voxelRoot.SetParent(transform, false);
+            _platformGo = platform.gameObject;
+            BuildPlatformGrid();
+        }
+
+        /// <summary>平台网格线（运行时可见，M4 表现打磨）</summary>
+        private void BuildPlatformGrid()
+        {
+            float halfW = level.width * cellSize * 0.5f;
+            float halfD = level.depth * cellSize * 0.5f;
+
+            var points = new List<Vector3>();
+            for (int x = 0; x <= level.width; x++)
+            {
+                float px = x * cellSize - halfW;
+                points.Add(new Vector3(px, 0.02f, -halfD));
+                points.Add(new Vector3(px, 0.02f, halfD));
+            }
+            for (int z = 0; z <= level.depth; z++)
+            {
+                float pz = z * cellSize - halfD;
+                points.Add(new Vector3(-halfW, 0.02f, pz));
+                points.Add(new Vector3(halfW, 0.02f, pz));
+            }
+
+            var go = new GameObject("PlatformGrid");
+            go.transform.SetParent(transform, false);
+            var line = go.AddComponent<LineRenderer>();
+            line.useWorldSpace = false;
+            line.positionCount = points.Count;
+            line.SetPositions(points.ToArray());
+            line.startWidth = line.endWidth = 0.02f;
+            line.numCapVertices = 0;
+
+            var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+            var mat = new Material(shader) { color = gridColor };
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            line.material = mat;
+
+            GridLines = line;
         }
 
         private void BuildWalls()
@@ -385,11 +443,16 @@ namespace ShadowCube.Game
             level = newLevel;
 
             foreach (var kv in _views)
-                if (kv.Value != null) Destroy(kv.Value.gameObject);
+                if (kv.Value != null) RecycleVoxel(kv.Value.gameObject);
             _views.Clear();
 
             if (_wallFront != null) Destroy(_wallFront.gameObject);
             if (_wallLeft != null) Destroy(_wallLeft.gameObject);
+
+            // 平台与网格线随关卡尺寸重建
+            if (_platformGo != null) Destroy(_platformGo);
+            if (GridLines != null) Destroy(GridLines.gameObject);
+            BuildPlatform();
 
             Trail?.Clear();
             _grid = level.CreateGrid();
@@ -408,7 +471,7 @@ namespace ShadowCube.Game
 
             _grid.Clear();
             foreach (var kv in _views)
-                if (kv.Value != null) Destroy(kv.Value.gameObject);
+                if (kv.Value != null) RecycleVoxel(kv.Value.gameObject);
             _views.Clear();
 
             _solved = false;
@@ -423,15 +486,16 @@ namespace ShadowCube.Game
         // ── 视图 ────────────────────────────────────────────────
         private void SpawnView(Vector3Int c)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var go = AcquireVoxel();
             go.name = $"Voxel_{c.x}_{c.y}_{c.z}";
             go.transform.SetParent(_voxelRoot, false);
             go.transform.localPosition = CellToWorld(c);
-            go.GetComponent<Renderer>().sharedMaterial = _voxelMat;
+            go.transform.localRotation = Quaternion.identity;
 
-            var view = go.AddComponent<VoxelView>();
-            var scale = Vector3.one * cellSize * 0.92f;
-            view.Init(scale, spawnDuration);
+            var view = go.GetComponent<VoxelView>();
+            if (view == null) view = go.AddComponent<VoxelView>();
+            view.Init(Vector3.one * cellSize * 0.92f, spawnDuration);
+
             _views[c] = view;
         }
 
@@ -444,7 +508,33 @@ namespace ShadowCube.Game
             }
 
             _views.Remove(c);
-            view.PlayDespawn(despawnDuration, () => Destroy(view.gameObject));
+            var go = view.gameObject;
+            view.PlayDespawn(despawnDuration, () => RecycleVoxel(go));
+        }
+
+        /// <summary>从池中取一个方块（或新建）</summary>
+        private GameObject AcquireVoxel()
+        {
+            while (_voxelPool.Count > 0)
+            {
+                var pooled = _voxelPool.Pop();
+                if (pooled == null) continue;      // fake-null 保护
+                pooled.SetActive(true);
+                return pooled;
+            }
+
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.GetComponent<Renderer>().sharedMaterial = _voxelMat;
+            return go;
+        }
+
+        private void RecycleVoxel(GameObject go)
+        {
+            if (go == null) return;
+
+            go.SetActive(false);
+            go.transform.SetParent(transform, false);
+            _voxelPool.Push(go);
         }
 
         private Vector3 CellToWorld(Vector3Int c)
@@ -458,12 +548,24 @@ namespace ShadowCube.Game
         {
             if (_grid == null) return;
 
-            var xy = ProjectionUtil.ProjectFront(_grid);   // U = x
-            var zy = ProjectionUtil.ProjectLeft(_grid);    // U = z
+            EnsureBuffers();
+            ProjectionUtil.ProjectInto(_grid, _xyBuffer, true);    // U = x
+            ProjectionUtil.ProjectInto(_grid, _zyBuffer, false);   // U = z
+
             var cameraRight = Camera.main != null ? Camera.main.transform.right : Vector3.right;
 
-            BackWallUsesXY = BindWall(_wallFront, level.TargetFront, level.TargetLeft, xy, zy, cameraRight);
-            LeftWallUsesXY = BindWall(_wallLeft, level.TargetFront, level.TargetLeft, xy, zy, cameraRight);
+            BackWallUsesXY = BindWall(_wallFront, level.TargetFront, level.TargetLeft, _xyBuffer, _zyBuffer, cameraRight);
+            LeftWallUsesXY = BindWall(_wallLeft, level.TargetFront, level.TargetLeft, _xyBuffer, _zyBuffer, cameraRight);
+        }
+
+        /// <summary>投影表缓冲区：尺寸变化时重建，平时复用（避免每次操作分配新数组）</summary>
+        private void EnsureBuffers()
+        {
+            if (_xyBuffer == null || _xyBuffer.GetLength(0) != level.width || _xyBuffer.GetLength(1) != level.maxHeight)
+                _xyBuffer = new bool[level.width, level.maxHeight];
+
+            if (_zyBuffer == null || _zyBuffer.GetLength(0) != level.depth || _zyBuffer.GetLength(1) != level.maxHeight)
+                _zyBuffer = new bool[level.depth, level.maxHeight];
         }
 
         /// <summary>
