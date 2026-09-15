@@ -15,6 +15,10 @@ namespace ShadowCube.Game.UI
 
         /// <summary>点击下一关（由上层切换关卡/场景）</summary>
         public Action NextRequested;
+
+        /// <summary>懒解析 LevelFlow（避免在 Awake 里抓到即将销毁的重复实例）</summary>
+        private LevelFlow Flow => _flow != null ? _flow : (_flow = FindObjectOfType<LevelFlow>());
+        private LevelFlow _flow;
         /// <summary>点击返回选关</summary>
         public Action BackRequested;
 
@@ -31,6 +35,14 @@ namespace ShadowCube.Game.UI
         private void Awake()
         {
             if (controller == null) controller = FindObjectOfType<GameController>();
+
+            // 自动接入场景流程：下一关 → 进入下一关（无则回选关）；返回 → 选关
+            NextRequested = () =>
+            {
+                if (Flow == null || controller == null) return;
+                Flow.PlayNext(controller.progress, controller.level);
+            };
+            BackRequested = () => { if (Flow != null) Flow.GoToLevelSelect(); };
 
             Build();
             Hide();

@@ -16,6 +16,10 @@ namespace ShadowCube.Game.UI
         /// <summary>点击返回（由上层决定跳到选关还是首页）</summary>
         public Action BackRequested;
 
+        /// <summary>懒解析 LevelFlow（避免在 Awake 里抓到即将销毁的重复实例）</summary>
+        private LevelFlow Flow => _flow != null ? _flow : (_flow = FindObjectOfType<LevelFlow>());
+        private LevelFlow _flow;
+
         public Button BackButton { get; private set; }
         public Button ResetButton { get; private set; }
         public Button RotateLeftButton { get; private set; }
@@ -27,6 +31,9 @@ namespace ShadowCube.Game.UI
         private void Awake()
         {
             if (controller == null) controller = FindObjectOfType<GameController>();
+
+            BackRequested = () => { if (Flow != null) Flow.GoToLevelSelect(); };
+
             Build();
             Refresh();
         }

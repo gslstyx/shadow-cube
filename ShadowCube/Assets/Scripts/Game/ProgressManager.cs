@@ -18,8 +18,16 @@ namespace ShadowCube.Game
         public bool resetOnStart;
 
         public ISaveStorage Storage { get; private set; }
-        public SaveData Data { get; private set; }
-        public ProgressService Progress { get; private set; }
+
+        /// <summary>存档数据（首次访问时自动加载，避免依赖 Awake 顺序）</summary>
+        public SaveData Data { get { EnsureReady(); return _data; } private set => _data = value; }
+
+        /// <summary>进度服务（首次访问时自动加载）</summary>
+        public ProgressService Progress { get { EnsureReady(); return _progress; } private set => _progress = value; }
+
+        private SaveData _data;
+        private ProgressService _progress;
+        private bool _loading;
 
         /// <summary>存档变化回调（选关界面刷新用）</summary>
         public Action Changed;
@@ -42,9 +50,26 @@ namespace ShadowCube.Game
             _initialized = true;
         }
 
+        /// <summary>懒初始化：其它组件的 Awake 可能早于本组件执行（_loading 防止 Rebuild 中递归）</summary>
+        private void EnsureReady()
+        {
+            if ((_progress != null && _data != null) || _loading) return;
+
+            _loading = true;
+            try
+            {
+                if (Storage == null) Storage = new FileSaveStorage();
+                Load();
+            }
+            finally
+            {
+                _loading = false;
+            }
+        }
+
         public void Load()
         {
-            Data = SaveSerializer.FromJson(Storage.Load());
+            _data = SaveSerializer.FromJson(Storage.Load());
             Rebuild();
         }
 
@@ -93,7 +118,7 @@ namespace ShadowCube.Game
 
         private void Rebuild()
         {
-            Progress = new ProgressService(Data, catalog != null ? catalog.OrderedIds() : null);
+            Progress = new ProgressService(_data, catalog != null ? catalog.OrderedIds() : null);
 
             if (catalog != null)
             {

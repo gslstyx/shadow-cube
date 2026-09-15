@@ -90,6 +90,13 @@ namespace ShadowCube.Game
 
         private void Awake()
         {
+            // 场景切换时由 LevelFlow 指定要玩的关卡
+            if (LevelFlow.PendingLevel != null)
+            {
+                level = LevelFlow.PendingLevel;
+                LevelFlow.PendingLevel = null;
+            }
+
             if (level == null)
             {
                 Debug.LogError("[ShadowCube] GameController 未指定 LevelData");
@@ -369,6 +376,31 @@ namespace ShadowCube.Game
 
         /// <summary>刷新 HUD 显示（关卡号 / 最好星级）</summary>
         public void HudRefresh() => hud?.Refresh();
+
+        /// <summary>切换到另一关：清空视图并按新关卡尺寸重建墙体与投影</summary>
+        public void LoadLevel(LevelData newLevel)
+        {
+            if (newLevel == null) return;
+
+            level = newLevel;
+
+            foreach (var kv in _views)
+                if (kv.Value != null) Destroy(kv.Value.gameObject);
+            _views.Clear();
+
+            if (_wallFront != null) Destroy(_wallFront.gameObject);
+            if (_wallLeft != null) Destroy(_wallLeft.gameObject);
+
+            Trail?.Clear();
+            _grid = level.CreateGrid();
+            _solved = false;
+            SolvedFeedbackPlayed = false;
+
+            BuildWalls();
+            RefreshProjection();
+            HudRefresh();
+            Debug.Log($"[ShadowCube] 已加载关卡：{level.Id}（{level.width}x{level.depth}x{level.maxHeight}，最优 {level.OptimalCount}）");
+        }
 
         public void ResetLevel()
         {

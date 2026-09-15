@@ -14,3 +14,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: ShadowCube.Core::ShadowCube.Core.LevelCatalog
   levels:
   - {fileID: 11400000, guid: 6056661e4b0054acf964c38f35105821, type: 2}
+  - {fileID: 11400000, guid: 293cad0b1fea94eeaa2095320f70e047, type: 2}
+  - {fileID: 11400000, guid: ef257dcff5e694e53962bdf6a7f74eb1, type: 2}
+  - {fileID: 11400000, guid: e2b01f9ad89ec445eb140a39177dc93e, type: 2}
+  - {fileID: 11400000, guid: d84dfbb19a57a46b184926dcf09489cf, type: 2}
+  - {fileID: 11400000, guid: d271cd9bbd0764845859548a30e3a27f, type: 2}
+  - {fileID: 11400000, guid: 44d86eb2af23b49d8967a4853aac6d86, type: 2}
+  - {fileID: 11400000, guid: 4fd45af5c978242d39f41856b7cecce9, type: 2}
+  - {fileID: 11400000, guid: 28b68c935ab8b4690ae3b4d95738eef9, type: 2}
+  - {fileID: 11400000, guid: 47e8128bb9ffb49e6990b4c214e6306f, type: 2}
+  - {fileID: 11400000, guid: 0e179e48a4b0b4acb87eb3dbe764b615, type: 2}
+  - {fileID: 11400000, guid: 13ff59a34ec8a485fa35b2624260faff, type: 2}
+  - {fileID: 11400000, guid: 6ef0b4e55f7a24c7cb8730b70c7febb7, type: 2}
+  - {fileID: 11400000, guid: a8fc191009ff04ba48fdfe04b45f9f13, type: 2}
+  - {fileID: 11400000, guid: 04c6b27de3799424aba065415ba4f2a0, type: 2}
+  - {fileID: 11400000, guid: 2aa93fd1532a1489180c0e91ceddebbb, type: 2}
+  - {fileID: 11400000, guid: 793a6b3a0344949c68bcb99a7d1cd46e, type: 2}
+  - {fileID: 11400000, guid: 217ffb5f7db4b48849e3e104624e12a1, type: 2}
+  - {fileID: 11400000, guid: cc1cb06acb80b4d9fa0b80015c7ad0f5, type: 2}
+  - {fileID: 11400000, guid: 21778b8f3866544cca8013bdf32f092b, type: 2}
+  - {fileID: 11400000, guid: 67f2c9a7bbb6e4bb5816e26e76306693, type: 2}

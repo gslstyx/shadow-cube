@@ -28,6 +28,14 @@ namespace ShadowCube.EditorTools
 
             // 进度（存档 + 关卡目录）
             var catalog = EnsureCatalog(level);
+
+            // 场景流程（跨场景单例）
+            if (Object.FindObjectOfType<LevelFlow>() == null)
+            {
+                var flowGo = new GameObject("LevelFlow");
+                flowGo.AddComponent<LevelFlow>().catalog = catalog;
+            }
+
             var progressGo = new GameObject("ProgressManager");
             var progress = progressGo.AddComponent<ProgressManager>();
             progress.catalog = catalog;
@@ -65,16 +73,17 @@ namespace ShadowCube.EditorTools
             var level = AssetDatabase.LoadAssetAtPath<LevelData>(LevelPath);
             if (level != null)
             {
-                if (string.IsNullOrEmpty(level.levelId))
+                // 教学关用 C0-L01，避免与生成器产出的 C1-Lxx 重号
+                if (string.IsNullOrEmpty(level.levelId) || level.levelId == "C1-L01")
                 {
-                    level.levelId = "C1-L01";     // 存档用稳定 ID
+                    level.levelId = "C0-L01";     // 存档用稳定 ID
                     EditorUtility.SetDirty(level);
                 }
                 return level;
             }
 
             level = ScriptableObject.CreateInstance<LevelData>();
-            level.levelId = "C1-L01";
+            level.levelId = "C0-L01";
             level.width = 5;
             level.depth = 5;
             level.maxHeight = 3;

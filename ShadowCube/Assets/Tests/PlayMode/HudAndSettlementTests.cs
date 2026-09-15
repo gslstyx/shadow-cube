@@ -118,13 +118,14 @@ namespace ShadowCube.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator 无后续关卡时_下一关按钮隐藏()
+        public IEnumerator 下一关按钮_可见性与是否存在下一关一致()
         {
             _settlement.Show(5);
             yield return null;
 
-            Assert.IsFalse(_settlement.HasNextLevel(), "当前只有一关，不应有下一关");
-            Assert.IsFalse(_settlement.NextButton.gameObject.activeSelf, "下一关按钮应隐藏");
+            bool hasNext = _settlement.HasNextLevel();
+            Assert.AreEqual(hasNext, _settlement.NextButton.gameObject.activeSelf,
+                "下一关按钮的可见性应与是否存在下一关一致");
         }
 
         [UnityTest]

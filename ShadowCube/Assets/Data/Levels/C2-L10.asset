@@ -10,18 +10,26 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f3c1181a5ac7a49a18244f38529e7cc9, type: 3}
-  m_Name: Level_01
+  m_Name: C2-L10
   m_EditorClassIdentifier: ShadowCube.Core::ShadowCube.Core.LevelData
-  width: 5
-  depth: 5
+  width: 6
+  depth: 6
   maxHeight: 3
   solution:
-  - {x: 1, y: 0, z: 1}
-  - {x: 2, y: 0, z: 1}
+  - {x: 0, y: 0, z: 2}
+  - {x: 0, y: 0, z: 3}
+  - {x: 0, y: 0, z: 4}
   - {x: 1, y: 0, z: 2}
+  - {x: 1, y: 0, z: 3}
+  - {x: 2, y: 0, z: 2}
+  - {x: 2, y: 0, z: 3}
+  - {x: 0, y: 1, z: 2}
   - {x: 1, y: 1, z: 1}
-  - {x: 3, y: 0, z: 3}
-  levelId: C0-L01
-  levelName: "\u7B2C\u4E00\u6B21\u6295\u5F71"
+  - {x: 1, y: 1, z: 2}
+  - {x: 0, y: 2, z: 1}
+  - {x: 1, y: 2, z: 1}
+  - {x: 1, y: 2, z: 2}
+  levelId: C2-L10
+  levelName: C2-L10
   chapterId: 1
   levelIndex: 1
