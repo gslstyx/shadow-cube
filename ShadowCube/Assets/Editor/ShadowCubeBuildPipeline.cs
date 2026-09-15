@@ -40,13 +40,26 @@ namespace ShadowCube.EditorTools
             Debug.Log($"[ShadowCube] 已应用配置，包名 = {PlayerSettings.applicationIdentifier}");
         }
 
-        [MenuItem(MenuRoot + "1) 一键打包 · 联调测试包 (APK / 全架构 / 可调试)")]
+        [MenuItem(MenuRoot + "1) 生成 IDE 工程文件（.sln / .csproj，供 VS Code 调试）")]
+        public static void SyncProjectFiles()
+        {
+            const string vscodePath = "/Applications/Visual Studio Code.app";
+            if (Directory.Exists(vscodePath))
+                Unity.CodeEditor.CodeEditor.SetExternalScriptEditor(vscodePath);
+
+            var editor = Unity.CodeEditor.CodeEditor.CurrentEditor;
+            Debug.Log($"[ShadowCube] CurrentEditor = {editor?.GetType().FullName ?? "null"}");
+            editor.SyncAll();
+            Debug.Log("[ShadowCube] 已请求生成 IDE 工程文件");
+        }
+
+        [MenuItem(MenuRoot + "2) 一键打包 · 联调测试包 (APK / 全架构 / 可调试)")]
         public static void BuildDevelopment()
         {
             Run(Profile.Development);
         }
 
-        [MenuItem(MenuRoot + "2) 一键打包 · 正式包 (AAB / 64位 / 签名)")]
+        [MenuItem(MenuRoot + "3) 一键打包 · 正式包 (AAB / 64位 / 签名)")]
         public static void BuildRelease()
         {
             Run(Profile.Release);

@@ -1,0 +1,24 @@
+{
+  // Unity 生成的工程文件不参与搜索与文件树展示
+  "files.exclude": {
+    "**/*.csproj": true,
+    "**/*.sln": true,
+    "**/*.unityproj": true,
+    "**/Library": true,
+    "**/Temp": true,
+    "**/Obj": true,
+    "**/Builds": true,
+    "**/.utmp": true,
+    "**/*.meta": true
+  },
+  "files.encoding": "utf8",
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+
+  // 打开 .cs 时自动载入 Unity 解决方案
+  "dotnet.defaultSolution": "ShadowCube.sln",
+
+  // Unity 项目使用 Unity 调试器（vstuc），不要启用普通 .NET 启动
+  "debug.showSubSessionsInToolBar": false
+}

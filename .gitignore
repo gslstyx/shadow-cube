@@ -41,7 +41,11 @@ crashlytics-build.properties
 *.app
 
 # ===== IDE / 系统 =====
-.vscode/
+# VS Code：忽略个人工作区文件，但保留团队共享的调试/推荐配置
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
 .idea/
 .DS_Store
 Thumbs.db

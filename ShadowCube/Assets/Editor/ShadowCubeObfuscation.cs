@@ -22,7 +22,7 @@ namespace ShadowCube.EditorTools
 
         private const string MenuRoot = "Tools/Shadow Cube/";
 
-        [MenuItem(MenuRoot + "3) 切换代码混淆开关 (build.json → obfuscation.enabled)")]
+        [MenuItem(MenuRoot + "4) 切换代码混淆开关 (build.json → obfuscation.enabled)")]
         public static void Toggle()
         {
             ShadowCubeBuildConfig.ToggleObfuscation();

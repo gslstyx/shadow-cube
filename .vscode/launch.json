@@ -1,0 +1,14 @@
+{
+  // 使用方式：
+  //   1) 在 Unity 中点 Play（或运行 Development Build 的真机包）
+  //   2) VS Code → 运行和调试 → 选「Attach to Unity」→ F5
+  //   3) 断点变实心即已连接，命中后可查看堆栈 / 监视 / 逐语句
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach to Unity",
+      "type": "vstuc",
+      "request": "attach"
+    }
+  ]
+}
