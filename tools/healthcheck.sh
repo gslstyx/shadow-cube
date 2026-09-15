@@ -51,6 +51,42 @@ else
 fi
 echo
 
+# ── 2.5 单元测试（EditMode）──────────────────────────────────
+if [[ "${1:-}" == "--skip-tests" ]]; then
+  echo "[2.5] 单元测试：跳过（--skip-tests）"
+else
+  echo "[2.5] 单元测试（EditMode）"
+  if [[ ! -x "$UNITY" ]]; then
+    warn "跳过（无 Unity）"
+  else
+    RES="/tmp/sc_tests_result.xml"
+    rm -f "$RES"
+    "$UNITY" -batchmode -runTests -testPlatform EditMode -projectPath "$PROJECT" \
+      -testResults "$RES" -logFile /tmp/sc_tests.log >/dev/null 2>&1
+    if [[ -f "$RES" ]]; then
+      SUMMARY=$(python3 -c "
+import re
+t=open('$RES',encoding='utf-8',errors='ignore').read()
+m=re.search(r'total=\"(\d+)\" passed=\"(\d+)\" failed=\"(\d+)\"',t)
+print(' '.join(m.groups()) if m else '? ? ?')" 2>/dev/null)
+      TOTAL=$(echo "$SUMMARY" | awk '{print $1}')
+      PASSED=$(echo "$SUMMARY" | awk '{print $2}')
+      FAILED=$(echo "$SUMMARY" | awk '{print $3}')
+      if [[ "$FAILED" == "0" ]]; then ok "单元测试通过 $PASSED/$TOTAL"; else
+        bad "单元测试失败 $FAILED/$TOTAL"
+        python3 -c "
+import re
+t=open('$RES',encoding='utf-8',errors='ignore').read()
+for n,r in re.findall(r'<test-case[^>]*fullname=\"([^\"]+)\"[^>]*result=\"(Failed)\"',t)[:5]:
+    print('       ✗', n)" 2>/dev/null
+      fi
+    else
+      warn "未生成测试结果文件，可能未安装 Test Framework"
+    fi
+  fi
+fi
+echo
+
 # ── 3. Git 卫生 ──────────────────────────────────────────────
 echo "[3] Git 卫生"
 BRANCH=$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null)
