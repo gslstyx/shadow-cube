@@ -1,33 +1,33 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ShadowCube.Game
 {
     /// <summary>
-    /// 墙面投影显示：目标投影（描边灰块）+ 当前投影（实心黑块）。
-    /// isFront=true 为后墙（横向 u = x），false 为左墙（横向 u = z）。
+    /// 单面墙的投影显示：目标投影（半透明灰）+ 当前投影（实心，过关后高亮）。
+    /// 显示哪张表、是否镜像由 GameController 通过 WallBindingRules 决定（随相机旋转变化）。
     /// </summary>
     public class ProjectionWallView : MonoBehaviour
     {
         [Header("配置")]
-        public bool isFront = true;
-        public int uSize = 5;
-        public int maxHeight = 4;
         public float cellSize = 1f;
         public float targetAlpha = 0.25f;
 
+        private static readonly Color CurrentBaseColor = new Color(0.06f, 0.06f, 0.06f, 1f);
+
+        private int _poolU = 5;
+        private int _maxHeight = 4;
         private Transform _targetRoot;
         private Transform _currentRoot;
-        private readonly System.Collections.Generic.List<GameObject> _targets = new();
-        private readonly System.Collections.Generic.List<GameObject> _currents = new();
+        private readonly List<GameObject> _targets = new();
+        private readonly List<GameObject> _currents = new();
         private Material _targetMat;
         private Material _currentMat;
-        private static readonly Color _currentBaseColor = new Color(0.06f, 0.06f, 0.06f, 1f);
 
-        public void Configure(bool front, int u, int height, float cell, bool facePositiveX)
+        public void Configure(bool facePositiveX, int poolU, int maxHeight, float cell)
         {
-            isFront = front;
-            uSize = u;
-            maxHeight = height;
+            _poolU = poolU;
+            _maxHeight = maxHeight;
             cellSize = cell;
 
             transform.rotation = facePositiveX ? Quaternion.Euler(0, 90, 0) : Quaternion.identity;
@@ -38,54 +38,67 @@ namespace ShadowCube.Game
             _currentRoot.SetParent(transform, false);
 
             _targetMat = CreateMaterial(new Color(0.35f, 0.35f, 0.35f, targetAlpha), transparent: true);
-            _currentMat = CreateMaterial(_currentBaseColor, transparent: false);
+            _currentMat = CreateMaterial(CurrentBaseColor, transparent: false);
 
-            EnsurePool(_targets, _targetRoot, _targetMat, 0.92f);
-            EnsurePool(_currents, _currentRoot, _currentMat, 0.86f);
+            BuildPool(_targets, _targetRoot, _targetMat, 0.92f);
+            BuildPool(_currents, _currentRoot, _currentMat, 0.86f);
         }
 
-        public void Show(bool[,] target, bool[,] current)
+        /// <summary>targetTable/currentTable 的 U 维度必须一致（同一张表的两个时刻）</summary>
+        public void Show(bool[,] targetTable, bool[,] currentTable, bool flipU)
         {
-            Apply(_targets, target);
-            Apply(_currents, current);
+            Layout(_targets, targetTable, flipU);
+            Layout(_currents, currentTable, flipU);
         }
 
         /// <summary>过关反馈：当前投影变高亮色</summary>
         public void SetSolved(bool solved, Color highlight)
         {
             if (_currentMat == null) return;
-            _currentMat.color = solved ? highlight : _currentBaseColor;
+            _currentMat.color = solved ? highlight : CurrentBaseColor;
         }
 
-        private void Apply(System.Collections.Generic.List<GameObject> pool, bool[,] table)
+        private void Layout(List<GameObject> pool, bool[,] table, bool flipU)
         {
+            if (table == null) { foreach (var go in pool) go.SetActive(false); return; }
+
+            int uCount = table.GetLength(0);
+            int hCount = table.GetLength(1);
+
             for (int i = 0; i < pool.Count; i++)
             {
-                int u = i % uSize;
-                int y = i / uSize;
-                bool on = table != null && u < table.GetLength(0) && y < table.GetLength(1) && table[u, y];
-                pool[i].SetActive(on);
+                int u = i % _poolU;
+                int y = i / _poolU;
+
+                bool visible = u < uCount && y < hCount && table[u, y];
+                pool[i].SetActive(visible);
+                if (!visible) continue;
+
+                float localX = (u + 0.5f - uCount * 0.5f) * cellSize;
+                pool[i].transform.localPosition = new Vector3(flipU ? -localX : localX, (y + 0.5f) * cellSize, 0f);
             }
         }
 
-        private void EnsurePool(System.Collections.Generic.List<GameObject> pool, Transform root, Material mat, float scale)
+        private void BuildPool(List<GameObject> pool, Transform root, Material mat, float scale)
         {
-            for (int y = 0; y < maxHeight; y++)
+            for (int y = 0; y < _maxHeight; y++)
             {
-                for (int u = 0; u < uSize; u++)
+                for (int u = 0; u < _poolU; u++)
                 {
                     var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
                     go.name = $"c{u}_{y}";
                     go.transform.SetParent(root, false);
-
-                    float localX = (u + 0.5f - uSize * 0.5f) * cellSize;
-                    if (!isFront) localX = -localX;          // 左墙旋转后横向取反，保证与平台方向一致
-                    go.transform.localPosition = new Vector3(localX, (y + 0.5f) * cellSize, 0f);
                     go.transform.localScale = Vector3.one * cellSize * scale;
 
-                    var renderer = go.GetComponent<Renderer>();
-                    renderer.sharedMaterial = mat;
-                    DestroyImmediate(go.GetComponent<Collider>());
+                    var collider = go.GetComponent<Collider>();
+                    if (collider != null)
+                    {
+                        collider.enabled = false;   // 立即失效，避免挡住拾取射线
+                        Destroy(collider);
+                    }
+
+                    go.GetComponent<Renderer>().sharedMaterial = mat;
+                    go.SetActive(false);
                     pool.Add(go);
                 }
             }
@@ -100,12 +113,10 @@ namespace ShadowCube.Game
             if (transparent)
             {
                 mat.SetFloat("_Surface", 1f);
-                mat.SetFloat("_AlphaClip", 0f);
                 mat.SetFloat("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
                 mat.SetFloat("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 mat.SetFloat("_ZWrite", 0f);
                 mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                mat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
             }
             return mat;
         }

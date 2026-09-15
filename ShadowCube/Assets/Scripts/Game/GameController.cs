@@ -37,6 +37,12 @@ namespace ShadowCube.Game
             ? LevelJudge.GetStars(_grid.Count, level.OptimalCount) : 0;
         public bool SolvedFeedbackPlayed { get; private set; }
         public DragTrail Trail { get; private set; }
+        public CameraRig Rig { get; private set; }
+
+        /// <summary>后墙当前是否显示 X-Y 投影表（随相机旋转变化，供测试/调试）</summary>
+        public bool BackWallUsesXY { get; private set; }
+        /// <summary>左墙当前是否显示 X-Y 投影表</summary>
+        public bool LeftWallUsesXY { get; private set; }
         [SerializeField] private bool muteAudio;
         public bool MuteAudio
         {
@@ -62,6 +68,8 @@ namespace ShadowCube.Game
         private Transform _voxelRoot;
         private GameObject _hover;
         private Material _hoverMat;
+        private bool _rotating;
+        private float _lastPointerX;
         private ProjectionWallView _wallLeft;
         private ProjectionWallView _wallFront;
         private Material _voxelMat;
@@ -90,6 +98,7 @@ namespace ShadowCube.Game
                 _sfx = procedural;
             }
 
+            EnsureRig();
             BuildPlatform();
             BuildWalls();
             BuildHover();
@@ -106,6 +115,22 @@ namespace ShadowCube.Game
         }
 
         // ── 构建 ────────────────────────────────────────────────
+        /// <summary>找到（或就地创建）相机云台，使两面墙随视角旋转</summary>
+        private void EnsureRig()
+        {
+            Rig = FindObjectOfType<CameraRig>();
+            if (Rig == null)
+            {
+                var go = new GameObject("CameraRig");
+                Rig = go.AddComponent<CameraRig>();
+
+                if (Camera.main != null)
+                    Camera.main.transform.SetParent(Rig.transform, true);
+            }
+
+            Rig.TurnsChanged += _ => RefreshProjection();
+        }
+
         private void BuildPlatform()
         {
             var platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -124,20 +149,25 @@ namespace ShadowCube.Game
             float halfW = level.width * cellSize * 0.5f;
             float halfD = level.depth * cellSize * 0.5f;
 
-            _wallLeft = CreateWall("Wall_Left", new Vector3(-halfW - wallGap, 0f, 0f),
-                isFront: false, uSize: level.depth, facePositiveX: true);
+            // 墙面挂在云台下，随视角一起旋转，始终位于"左后"方向
+            var parent = Rig != null ? Rig.WallsRoot : transform;
 
-            _wallFront = CreateWall("Wall_Front", new Vector3(0f, 0f, -halfD - wallGap),
-                isFront: true, uSize: level.width, facePositiveX: false);
+            int poolU = Mathf.Max(level.width, level.depth);
+
+            _wallLeft = CreateWall(parent, "Wall_Left", new Vector3(-halfW - wallGap, 0f, 0f),
+                poolU: poolU, facePositiveX: true);
+
+            _wallFront = CreateWall(parent, "Wall_Front", new Vector3(0f, 0f, -halfD - wallGap),
+                poolU: poolU, facePositiveX: false);
         }
 
-        private ProjectionWallView CreateWall(string name, Vector3 position, bool isFront, int uSize, bool facePositiveX)
+        private ProjectionWallView CreateWall(Transform parent, string name, Vector3 localPosition, int poolU, bool facePositiveX)
         {
             var go = new GameObject(name);
-            go.transform.SetParent(transform, false);
-            go.transform.position = position;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPosition;
             var wall = go.AddComponent<ProjectionWallView>();
-            wall.Configure(isFront, uSize, level.maxHeight, cellSize, facePositiveX);
+            wall.Configure(facePositiveX, poolU, level.maxHeight, cellSize);
             return wall;
         }
 
@@ -147,7 +177,12 @@ namespace ShadowCube.Game
             _hover.name = "HoverIndicator";
             _hover.transform.SetParent(transform, false);
             _hover.transform.localScale = Vector3.one * cellSize * 0.98f;
-            Destroy(_hover.GetComponent<Collider>());
+            var hoverCollider = _hover.GetComponent<Collider>();
+            if (hoverCollider != null)
+            {
+                hoverCollider.enabled = false;   // 立即失效，避免挡住拾取射线
+                Destroy(hoverCollider);
+            }
             _hoverMat = CreateMaterial(new Color(1f, 1f, 1f, 0.18f), transparent: true);
             _hover.GetComponent<Renderer>().sharedMaterial = _hoverMat;
             _hover.SetActive(false);
@@ -168,6 +203,29 @@ namespace ShadowCube.Game
             if (cam == null) return;
 
             bool pressed = Input.GetMouseButton(0);
+
+            // 旋转分支：按在平台/方块之外 → 拖动旋转视角
+            if (Input.GetMouseButtonDown(0) && !TryPickCell(cam, out _, out _))
+            {
+                _rotating = true;
+                _lastPointerX = Input.mousePosition.x;
+                Rig?.BeginDrag();
+            }
+            else if (_rotating && pressed)
+            {
+                float dx = Input.mousePosition.x - _lastPointerX;
+                _lastPointerX = Input.mousePosition.x;
+                Rig?.Drag(dx);
+            }
+
+            if (Input.GetMouseButtonUp(0) && _rotating)
+            {
+                _rotating = false;
+                Rig?.EndDrag();
+            }
+
+            if (_rotating) { if (_hover != null) _hover.SetActive(false); return; }
+
             if (TryPickCell(cam, out var cell, out bool hitVoxel))
             {
                 UpdateHover(cell, hitVoxel);
@@ -352,8 +410,31 @@ namespace ShadowCube.Game
         // ── 判定 ────────────────────────────────────────────────
         private void RefreshProjection()
         {
-            _wallFront?.Show(level.TargetFront, ProjectionUtil.ProjectFront(_grid));
-            _wallLeft?.Show(level.TargetLeft, ProjectionUtil.ProjectLeft(_grid));
+            if (_grid == null) return;
+
+            var xy = ProjectionUtil.ProjectFront(_grid);   // U = x
+            var zy = ProjectionUtil.ProjectLeft(_grid);    // U = z
+            var cameraRight = Camera.main != null ? Camera.main.transform.right : Vector3.right;
+
+            BackWallUsesXY = BindWall(_wallFront, level.TargetFront, level.TargetLeft, xy, zy, cameraRight);
+            LeftWallUsesXY = BindWall(_wallLeft, level.TargetFront, level.TargetLeft, xy, zy, cameraRight);
+        }
+
+        /// <summary>
+        /// 按墙的世界法线选择投影表（旋转 90° 后两面墙会自动互换），
+        /// 并按摄像机右方向决定镜像，保证玩家看到的方向直观。
+        /// </summary>
+        private static bool BindWall(ProjectionWallView wall, bool[,] targetXY, bool[,] targetZY,
+            bool[,] currentXY, bool[,] currentZY, Vector3 cameraRight)
+        {
+            if (wall == null) return false;
+
+            var binding = WallBindingRules.Resolve(wall.transform.forward, cameraRight);
+            var target = binding.UseXY ? targetXY : targetZY;
+            var current = binding.UseXY ? currentXY : currentZY;
+
+            wall.Show(target, current, binding.FlipU);
+            return binding.UseXY;
         }
 
         private void CheckSolved()

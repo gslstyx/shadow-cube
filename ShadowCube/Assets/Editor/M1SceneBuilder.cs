@@ -84,6 +84,12 @@ namespace ShadowCube.EditorTools
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.08f, 0.09f, 0.11f);
 
+            // 相机挂在云台下，云台绕 Y 轴旋转（含两面墙）→ 视角旋转时墙跟随
+            var rigGo = new GameObject("CameraRig");
+            rigGo.transform.position = Vector3.zero;
+            rigGo.AddComponent<CameraRig>();
+            cam.transform.SetParent(rigGo.transform, true);
+
             float span = Mathf.Max(level.width, level.depth);
             cam.transform.position = new Vector3(span * 1.15f, level.maxHeight * 1.6f + 5f, span * 1.45f);
             cam.transform.LookAt(new Vector3(0f, level.maxHeight * 0.5f, 0f));
