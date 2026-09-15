@@ -1,0 +1,16 @@
+{
+  "name": "ShadowCube.Game",
+  "rootNamespace": "ShadowCube.Game",
+  "references": [
+    "ShadowCube.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
