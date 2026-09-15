@@ -15,6 +15,9 @@ namespace ShadowCube.Game
         [Header("关卡")]
         public LevelData level;
 
+        [Tooltip("留空则自动查找场景中的 ProgressManager（找不到则不存档）")]
+        public ProgressManager progress;
+
         [Header("布局")]
         public float cellSize = 1f;
         public float wallGap = 1.5f;
@@ -97,6 +100,8 @@ namespace ShadowCube.Game
                 procedural.muted = muteAudio;
                 _sfx = procedural;
             }
+
+            if (progress == null) progress = FindObjectOfType<ProgressManager>();
 
             EnsureRig();
             BuildPlatform();
@@ -447,6 +452,8 @@ namespace ShadowCube.Game
 
             _sfx.PlaySolved();
             PlaySolvedFeedback();
+
+            progress?.RecordResult(level, StarRating);
 
             Debug.Log($"[ShadowCube] 过关！方块 {_grid.Count} / 最优 {level.OptimalCount} → {StarRating} 星\n{Dump()}");
         }

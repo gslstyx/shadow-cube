@@ -44,9 +44,18 @@ namespace ShadowCube.EditorTools
                 AssetDatabase.CreateFolder(DataDir, "Levels");
 
             var level = AssetDatabase.LoadAssetAtPath<LevelData>(LevelPath);
-            if (level != null) return level;
+            if (level != null)
+            {
+                if (string.IsNullOrEmpty(level.levelId))
+                {
+                    level.levelId = "C1-L01";     // 存档用稳定 ID
+                    EditorUtility.SetDirty(level);
+                }
+                return level;
+            }
 
             level = ScriptableObject.CreateInstance<LevelData>();
+            level.levelId = "C1-L01";
             level.width = 5;
             level.depth = 5;
             level.maxHeight = 3;

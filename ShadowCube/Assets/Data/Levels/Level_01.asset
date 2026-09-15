@@ -21,6 +21,7 @@ MonoBehaviour:
   - {x: 1, y: 0, z: 2}
   - {x: 1, y: 1, z: 1}
   - {x: 3, y: 0, z: 3}
+  levelId: C1-L01
   levelName: "\u7B2C\u4E00\u6B21\u6295\u5F71"
   chapterId: 1
   levelIndex: 1

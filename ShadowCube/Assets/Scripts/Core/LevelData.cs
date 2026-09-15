@@ -17,9 +17,14 @@ namespace ShadowCube.Core
         public Vector3Int[] solution = new Vector3Int[0];
 
         [Header("信息")]
+        [Tooltip("存档用的稳定唯一 ID（改动会导致该关进度失效，上架后不要改）")]
+        public string levelId = "";
         public string levelName = "";
         public int chapterId = 1;
         public int levelIndex = 1;
+
+        /// <summary>稳定 ID：未填写时回退为资产名</summary>
+        public string Id => string.IsNullOrEmpty(levelId) ? name : levelId;
 
         /// <summary>最优解方块数（星级基准）</summary>
         public int OptimalCount => solution != null ? solution.Length : 0;
