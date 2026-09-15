@@ -18,6 +18,12 @@ namespace ShadowCube.Game
         [Tooltip("留空则自动查找场景中的 ProgressManager（找不到则不存档）")]
         public ProgressManager progress;
 
+        [Tooltip("HUD（可选，用于按钮触发后刷新显示）")]
+        public UI.GameHud hud;
+
+        /// <summary>过关事件（参数为星级），结算面板等订阅</summary>
+        public event System.Action<int> Solved;
+
         [Header("布局")]
         public float cellSize = 1f;
         public float wallGap = 1.5f;
@@ -361,6 +367,9 @@ namespace ShadowCube.Game
             return true;
         }
 
+        /// <summary>刷新 HUD 显示（关卡号 / 最好星级）</summary>
+        public void HudRefresh() => hud?.Refresh();
+
         public void ResetLevel()
         {
             if (_grid == null) return;
@@ -454,6 +463,8 @@ namespace ShadowCube.Game
             PlaySolvedFeedback();
 
             progress?.RecordResult(level, StarRating);
+            HudRefresh();
+            Solved?.Invoke(StarRating);
 
             Debug.Log($"[ShadowCube] 过关！方块 {_grid.Count} / 最优 {level.OptimalCount} → {StarRating} 星\n{Dump()}");
         }

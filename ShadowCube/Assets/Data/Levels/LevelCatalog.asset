@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 399797bfd58914901903318ae239d3b0, type: 3}
+  m_Name: LevelCatalog
+  m_EditorClassIdentifier: ShadowCube.Core::ShadowCube.Core.LevelCatalog
+  levels:
+  - {fileID: 11400000, guid: 6056661e4b0054acf964c38f35105821, type: 2}

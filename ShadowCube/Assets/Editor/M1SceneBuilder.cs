@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using ShadowCube.Core;
 using ShadowCube.Game;
+using ShadowCube.Game.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -25,9 +26,27 @@ namespace ShadowCube.EditorTools
             ConfigureLight();
             ConfigureCamera(level);
 
+            // 进度（存档 + 关卡目录）
+            var catalog = EnsureCatalog(level);
+            var progressGo = new GameObject("ProgressManager");
+            var progress = progressGo.AddComponent<ProgressManager>();
+            progress.catalog = catalog;
+
+            // 玩法主控
             var controllerGo = new GameObject("GameController");
             var controller = controllerGo.AddComponent<GameController>();
             controller.level = level;
+            controller.progress = progress;
+
+            // HUD + 结算
+            var hudGo = new GameObject("GameHud");
+            var hud = hudGo.AddComponent<GameHud>();
+            hud.controller = controller;
+            controller.hud = hud;
+
+            var settlementGo = new GameObject("SettlementPanel");
+            var settlement = settlementGo.AddComponent<SettlementPanel>();
+            settlement.controller = controller;
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddToBuildSettings();
@@ -73,6 +92,25 @@ namespace ShadowCube.EditorTools
 
             AssetDatabase.CreateAsset(level, LevelPath);
             return level;
+        }
+
+        private static LevelCatalog EnsureCatalog(LevelData level)
+        {
+            string path = LevelDir + "/LevelCatalog.asset";
+            var catalog = AssetDatabase.LoadAssetAtPath<LevelCatalog>(path);
+
+            if (catalog == null)
+            {
+                catalog = ScriptableObject.CreateInstance<LevelCatalog>();
+                AssetDatabase.CreateAsset(catalog, path);
+            }
+
+            if (!catalog.levels.Contains(level))
+            {
+                catalog.levels.Add(level);
+                EditorUtility.SetDirty(catalog);
+            }
+            return catalog;
         }
 
         private static void ConfigureLight()
