@@ -56,6 +56,10 @@ namespace ShadowCube.EditorTools
             var settlement = settlementGo.AddComponent<SettlementPanel>();
             settlement.controller = controller;
 
+            // 新手引导（仅首次触发）
+            var tutorialGo = new GameObject("TutorialOverlay");
+            tutorialGo.AddComponent<TutorialOverlay>().progress = progress;
+
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddToBuildSettings();
 
