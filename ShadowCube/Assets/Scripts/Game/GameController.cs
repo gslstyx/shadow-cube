@@ -35,6 +35,27 @@ namespace ShadowCube.Game
         public int BlockCount => _grid?.Count ?? 0;
         public int StarRating => _solved && level != null
             ? LevelJudge.GetStars(_grid.Count, level.OptimalCount) : 0;
+        public bool SolvedFeedbackPlayed { get; private set; }
+        public DragTrail Trail { get; private set; }
+        [SerializeField] private bool muteAudio;
+        public bool MuteAudio
+        {
+            get => muteAudio;
+            set
+            {
+                muteAudio = value;
+                if (_sfx is ProceduralSfxPlayer p) p.muted = value;
+            }
+        }
+
+        /// <summary>音效播放器（测试可注入替身）</summary>
+        public ISfxPlayer Sfx
+        {
+            get => _sfx;
+            set => _sfx = value ?? new NullSfxPlayer();
+        }
+
+        private ISfxPlayer _sfx = new NullSfxPlayer();
 
         private VoxelGrid _grid;
         private readonly Dictionary<Vector3Int, VoxelView> _views = new();
@@ -61,9 +82,18 @@ namespace ShadowCube.Game
             _grid = level.CreateGrid();
             _voxelMat = CreateMaterial(voxelColor);
 
+            if (_sfx is NullSfxPlayer)
+            {
+                var procedural = gameObject.GetComponent<ProceduralSfxPlayer>();
+                if (procedural == null) procedural = gameObject.AddComponent<ProceduralSfxPlayer>();
+                procedural.muted = muteAudio;
+                _sfx = procedural;
+            }
+
             BuildPlatform();
             BuildWalls();
             BuildHover();
+            BuildTrail();
             RefreshProjection();
         }
 
@@ -123,6 +153,14 @@ namespace ShadowCube.Game
             _hover.SetActive(false);
         }
 
+        private void BuildTrail()
+        {
+            var go = new GameObject("DragTrail");
+            go.transform.SetParent(transform, false);
+            Trail = go.AddComponent<DragTrail>();
+            Trail.Init();
+        }
+
         // ── 输入 ────────────────────────────────────────────────
         private void HandlePointer()
         {
@@ -139,11 +177,14 @@ namespace ShadowCube.Game
                     _dragging = true;
                     _gesture = GestureRules.Decide(hitVoxel || HasVoxelInColumn(cell.x, cell.y));
                     _lastCell = cell;
+                    Trail?.Clear();
+                    AddTrailPoint(cell);
                     Apply(cell);
                 }
                 else if (pressed && _dragging && cell != _lastCell)
                 {
                     _lastCell = cell;
+                    AddTrailPoint(cell);
                     Apply(cell);
                 }
             }
@@ -205,6 +246,15 @@ namespace ShadowCube.Game
             return true;
         }
 
+        private void AddTrailPoint(Vector2Int cell)
+        {
+            var p = new Vector3(
+                (cell.x + 0.5f - level.width * 0.5f) * cellSize,
+                0.06f,
+                (cell.y + 0.5f - level.depth * 0.5f) * cellSize);
+            Trail?.AddPoint(p);
+        }
+
         private void Apply(Vector2Int cell)
         {
             if (_gesture == GestureRules.Gesture.Add) AddAt(cell.x, cell.y);
@@ -226,6 +276,7 @@ namespace ShadowCube.Game
 
             SpawnView(c);
             RefreshProjection();
+            _sfx.PlayAdd();
             CheckSolved();
             return true;
         }
@@ -242,6 +293,7 @@ namespace ShadowCube.Game
 
             DespawnView(c);
             RefreshProjection();
+            _sfx.PlayRemove();
             CheckSolved();
             return true;
         }
@@ -256,8 +308,10 @@ namespace ShadowCube.Game
             _views.Clear();
 
             _solved = false;
+            SolvedFeedbackPlayed = false;
             _wallFront?.SetSolved(false, solvedHighlight);
             _wallLeft?.SetSolved(false, solvedHighlight);
+            Trail?.Clear();
             RefreshProjection();
             Debug.Log("[ShadowCube] 已重置本关");
         }
@@ -310,7 +364,23 @@ namespace ShadowCube.Game
             _wallFront?.SetSolved(true, solvedHighlight);
             _wallLeft?.SetSolved(true, solvedHighlight);
 
+            _sfx.PlaySolved();
+            PlaySolvedFeedback();
+
             Debug.Log($"[ShadowCube] 过关！方块 {_grid.Count} / 最优 {level.OptimalCount} → {StarRating} 星\n{Dump()}");
+        }
+
+        /// <summary>过关结算动效：方块按 (x+z) 错峰脉冲，形成波浪扫过</summary>
+        private void PlaySolvedFeedback()
+        {
+            SolvedFeedbackPlayed = true;
+
+            foreach (var kv in _views)
+            {
+                if (kv.Value == null) continue;
+                float delay = (kv.Key.x + kv.Key.z) * 0.05f;
+                kv.Value.PlayPulse(delay);
+            }
         }
 
         private string Dump()

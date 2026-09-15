@@ -3,6 +3,7 @@
   "rootNamespace": "ShadowCube.Tests.EditMode",
   "references": [
     "ShadowCube.Core",
+    "ShadowCube.Game",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],

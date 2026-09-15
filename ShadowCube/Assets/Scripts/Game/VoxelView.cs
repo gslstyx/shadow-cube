@@ -22,6 +22,31 @@ namespace ShadowCube.Game
             _routine = StartCoroutine(Despawn(duration, onDone));
         }
 
+        /// <summary>过关庆祝脉冲：放大再回弹（delay 用于错峰形成波浪）</summary>
+        public void PlayPulse(float delay, float amount = 0.18f, float duration = 0.32f)
+        {
+            if (_routine != null) StopCoroutine(_routine);
+            _routine = StartCoroutine(Pulse(delay, amount, duration));
+        }
+
+        private IEnumerator Pulse(float delay, float amount, float duration)
+        {
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+
+            float t = 0f;
+            while (t < duration)
+            {
+                t += Time.deltaTime;
+                float k = Mathf.Clamp01(t / duration);
+                float wave = Mathf.Sin(k * Mathf.PI);           // 0 → 1 → 0
+                transform.localScale = _baseScale * (1f + amount * wave);
+                yield return null;
+            }
+
+            transform.localScale = _baseScale;
+            _routine = null;
+        }
+
         private IEnumerator Spawn(float duration)
         {
             transform.localScale = _baseScale * 0.25f;
