@@ -95,8 +95,7 @@ namespace ShadowCube.EditorTools
             // 注意 WorldToScreenPoint 用的是 Screen 分辨率，诊断时按 Screen 尺寸渲染以保证 1:1 映射
             int w = Mathf.Max(64, Screen.width), h = Mathf.Max(64, Screen.height);
             Debug.Log($"[诊断] Screen={Screen.width}x{Screen.height}");
-            var image = Render(cam, w, h);
-            SaveImage(image, "docs/images/_diag_1_normal.png");
+            var image = Render(cam, w, h);   // 只做像素采样，不落盘（避免临时图混进仓库）
 
             foreach (var wall in new[] { controller.WallLeft, controller.WallFront })
             {
