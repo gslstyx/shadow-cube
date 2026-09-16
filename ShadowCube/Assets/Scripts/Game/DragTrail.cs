@@ -12,6 +12,7 @@ namespace ShadowCube.Game
         [Header("外观")]
         public float width = 0.09f;
         public Color color = new Color(0.65f, 0.85f, 1f, 0.85f);
+        public Material trailMaterial;
         [Header("淡出")]
         public float holdSeconds = 0.35f;
         public float fadeSeconds = 0.25f;
@@ -37,7 +38,8 @@ namespace ShadowCube.Game
             _line.alignment = LineAlignment.View;
 
             var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
-            _material = new Material(shader) { color = color };
+            // 轨迹透明度会动态变化，必须用实例拷贝
+            _material = trailMaterial != null ? new Material(trailMaterial) : new Material(shader) { color = color };
             _material.SetFloat("_Surface", 1f);
             _material.SetFloat("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             _material.SetFloat("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);

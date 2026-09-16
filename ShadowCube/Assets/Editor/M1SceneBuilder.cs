@@ -26,6 +26,19 @@ namespace ShadowCube.EditorTools
             ConfigureLight();
             ConfigureCamera(level);
 
+            // 运行时材质资产（保证 shader 进包，真机不再 Shader.Find 失败）
+            ShadowCubeMaterialBuilder.Build();
+            var mats = new
+            {
+                platform = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_Platform.mat"),
+                voxel = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_Voxel.mat"),
+                grid = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_GridLine.mat"),
+                hover = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_Hover.mat"),
+                wallTarget = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_WallTarget.mat"),
+                wallCurrent = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_WallCurrent.mat"),
+                trail = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_DragTrail.mat"),
+            };
+
             // 进度（存档 + 关卡目录）
             var catalog = EnsureCatalog(level);
 
@@ -45,6 +58,13 @@ namespace ShadowCube.EditorTools
             var controller = controllerGo.AddComponent<GameController>();
             controller.level = level;
             controller.progress = progress;
+            controller.platformMaterial = mats.platform;
+            controller.voxelMaterial = mats.voxel;
+            controller.gridLineMaterial = mats.grid;
+            controller.hoverMaterial = mats.hover;
+            controller.wallTargetMaterial = mats.wallTarget;
+            controller.wallCurrentMaterial = mats.wallCurrent;
+            controller.dragTrailMaterial = mats.trail;
 
             // HUD + 结算
             var hudGo = new GameObject("GameHud");
@@ -157,9 +177,10 @@ namespace ShadowCube.EditorTools
 
         private static void AddToBuildSettings()
         {
+            // 追加到末尾，保证首页/选关仍在最前（MenuSceneBuilder 负责最终排序）
             var scenes = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
             scenes.RemoveAll(s => s.path == ScenePath);
-            scenes.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
+            scenes.Add(new EditorBuildSettingsScene(ScenePath, true));
             EditorBuildSettings.scenes = scenes.ToArray();
         }
     }

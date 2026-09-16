@@ -43,8 +43,13 @@ namespace ShadowCube.Game
         /// <summary>进入指定关卡</summary>
         public void PlayLevel(LevelData level)
         {
-            if (level == null) return;
+            if (level == null)
+            {
+                Debug.LogWarning("[ShadowCube] PlayLevel：目标关卡为空");
+                return;
+            }
 
+            Debug.Log($"[ShadowCube] PlayLevel：{level.Id} → {SceneGame}");
             PendingLevel = level;
             SceneManager.LoadScene(SceneGame);
         }
@@ -53,6 +58,7 @@ namespace ShadowCube.Game
         public void PlayLastOrFirst(ProgressManager progress)
         {
             var target = progress != null ? progress.LastPlayedOrFirst() : null;
+            Debug.Log($"[ShadowCube] PlayLastOrFirst：目标 = {(target != null ? target.Id : "null")}（progress={(progress != null ? "有" : "无")}）");
             if (target == null && catalog != null && catalog.Count > 0) target = catalog.Get(0);
             PlayLevel(target);
         }

@@ -13,6 +13,10 @@ namespace ShadowCube.Game
         public float cellSize = 1f;
         public float targetAlpha = 0.25f;
 
+        [Header("材质（资产引用，由 GameController 赋值）")]
+        public Material targetMaterial;
+        public Material currentMaterial;
+
         private static readonly Color CurrentBaseColor = new Color(0.06f, 0.06f, 0.06f, 1f);
 
         private int _poolU = 5;
@@ -37,8 +41,13 @@ namespace ShadowCube.Game
             _currentRoot = new GameObject("Current").transform;
             _currentRoot.SetParent(transform, false);
 
-            _targetMat = CreateMaterial(new Color(0.35f, 0.35f, 0.35f, targetAlpha), transparent: true);
-            _currentMat = CreateMaterial(CurrentBaseColor, transparent: false);
+            _targetMat = targetMaterial != null
+                ? new Material(targetMaterial)
+                : CreateMaterial(new Color(0.35f, 0.35f, 0.35f, targetAlpha), transparent: true);
+
+            _currentMat = currentMaterial != null
+                ? new Material(currentMaterial)
+                : CreateMaterial(CurrentBaseColor, transparent: false);
 
             BuildPool(_targets, _targetRoot, _targetMat, 0.92f);
             BuildPool(_currents, _currentRoot, _currentMat, 0.86f);

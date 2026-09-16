@@ -55,12 +55,16 @@ namespace ShadowCube.Game.UI
 
         public void OnPlayClicked()
         {
-            if (flow != null) flow.PlayLastOrFirst(progress);
+            Debug.Log("[ShadowCube] OnPlayClicked");
+            if (flow == null) { Debug.LogWarning("[ShadowCube] OnPlayClicked：flow 为空"); return; }
+            flow.PlayLastOrFirst(progress);
         }
 
         public void OnLevelSelectClicked()
         {
-            if (flow != null) flow.GoToLevelSelect();
+            Debug.Log("[ShadowCube] OnLevelSelectClicked");
+            if (flow == null) { Debug.LogWarning("[ShadowCube] OnLevelSelectClicked：flow 为空"); return; }
+            flow.GoToLevelSelect();
         }
     }
 }

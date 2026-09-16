@@ -34,6 +34,15 @@ namespace ShadowCube.Game
         public Color voxelColor = new Color(0.85f, 0.87f, 0.9f);
         public Color solvedHighlight = new Color(0.25f, 0.9f, 0.5f);
 
+        [Header("材质（资产引用，由场景生成器赋值；保证 shader 进包）")]
+        public Material platformMaterial;
+        public Material voxelMaterial;
+        public Material gridLineMaterial;
+        public Material hoverMaterial;
+        public Material wallTargetMaterial;
+        public Material wallCurrentMaterial;
+        public Material dragTrailMaterial;
+
         [Header("动效")]
         public float spawnDuration = 0.14f;
         public float despawnDuration = 0.12f;
@@ -173,7 +182,7 @@ namespace ShadowCube.Game
             platform.transform.SetParent(transform, false);
             platform.transform.localScale = new Vector3(level.width * cellSize, 0.1f, level.depth * cellSize);
             platform.transform.localPosition = new Vector3(0f, -0.05f, 0f);
-            platform.GetComponent<Renderer>().sharedMaterial = CreateMaterial(platformColor);
+            platform.GetComponent<Renderer>().sharedMaterial = Mat(platformMaterial, platformColor, transparent: false);
 
             _platformGo = platform.gameObject;
             BuildPlatformGrid();
@@ -209,12 +218,7 @@ namespace ShadowCube.Game
             line.numCapVertices = 0;
 
             var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
-            var mat = new Material(shader) { color = gridColor };
-            mat.SetFloat("_Surface", 1f);
-            mat.SetFloat("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            mat.SetFloat("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            mat.SetFloat("_ZWrite", 0f);
-            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            var mat = Mat(gridLineMaterial, gridColor, transparent: true);
             line.material = mat;
 
             GridLines = line;
@@ -243,6 +247,8 @@ namespace ShadowCube.Game
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPosition;
             var wall = go.AddComponent<ProjectionWallView>();
+            wall.targetMaterial = wallTargetMaterial;
+            wall.currentMaterial = wallCurrentMaterial;
             wall.Configure(facePositiveX, poolU, level.maxHeight, cellSize);
             return wall;
         }
@@ -253,6 +259,9 @@ namespace ShadowCube.Game
             _hover.name = "HoverIndicator";
             _hover.transform.SetParent(transform, false);
             _hover.transform.localScale = Vector3.one * cellSize * 0.98f;
+            // 悬停材质做实例拷贝（透明度会动态变化，不能改共享资产）
+            _hoverMat = new Material(Mat(hoverMaterial, new Color(1f, 1f, 1f, 0.2f), transparent: true));
+            _hover.GetComponent<Renderer>().sharedMaterial = _hoverMat;
             var hoverCollider = _hover.GetComponent<Collider>();
             if (hoverCollider != null)
             {
@@ -491,6 +500,7 @@ namespace ShadowCube.Game
             go.transform.SetParent(_voxelRoot, false);
             go.transform.localPosition = CellToWorld(c);
             go.transform.localRotation = Quaternion.identity;
+            go.GetComponent<Renderer>().sharedMaterial = Mat(voxelMaterial, voxelColor, transparent: false);
 
             var view = go.GetComponent<VoxelView>();
             if (view == null) view = go.AddComponent<VoxelView>();
@@ -634,6 +644,15 @@ namespace ShadowCube.Game
                 for (int x = 0; x < t.GetLength(0); x++) sb.Append(t[x, y] ? '■' : '·');
                 sb.AppendLine();
             }
+        }
+
+        /// <summary>优先用资产材质（shader 保证进包），未配置时回退运行时创建（真机可能失败）</summary>
+        private Material Mat(Material asset, Color color, bool transparent)
+        {
+            if (asset != null) return asset;
+
+            Debug.LogWarning("[ShadowCube] 未指定材质资产，使用运行时回退（真机可能拿不到 shader，请执行菜单 9 生成材质资产）");
+            return CreateMaterial(color, transparent);
         }
 
         private static Material CreateMaterial(Color color, bool transparent = false)
