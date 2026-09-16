@@ -206,6 +206,14 @@ namespace ShadowCube.Game
             gridColor = theme.gridColor;
             voxelColor = theme.voxelColor;
 
+            // 材质资产的颜色也要跟随主题：Mat() 命中资产时直接返回资产、不应用运行时颜色，
+            // 所以这里直接改资产实例的内存颜色（不会写回磁盘）
+            if (platformMaterial != null) platformMaterial.color = theme.platformColor;
+            if (gridLineMaterial != null) gridLineMaterial.color = theme.gridColor;
+            if (voxelMaterial != null) voxelMaterial.color = theme.voxelColor;
+            if (_voxelMat != null) _voxelMat.color = theme.voxelColor;
+            if (starDustMaterial != null) starDustMaterial.color = theme.starColor;
+
             if (Camera.main != null)
             {
                 Camera.main.clearFlags = CameraClearFlags.SolidColor;
@@ -251,10 +259,9 @@ namespace ShadowCube.Game
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Sphere;
             shape.radius = theme.starRadius;
-
-            var velocity = ps.velocityOverLifetime;
-            velocity.enabled = true;
-            velocity.y = new ParticleSystem.MinMaxCurve(0.02f, 0.10f);
+            // 漂浮感用 startSpeed + 球形随机方向即可；
+            // 不要再用 velocityOverLifetime：各轴曲线模式不一致会每帧刷
+            // "Particle Velocity curves must be in the same mode" 错误
 
             var renderer = go.GetComponent<ParticleSystemRenderer>();
             renderer.sharedMaterial = starDustMaterial;
