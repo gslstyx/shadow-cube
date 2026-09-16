@@ -20,11 +20,11 @@ namespace ShadowCube.EditorTools
             ("M_Voxel",         new Color(0.85f, 0.87f, 0.90f),            true,  false),
             ("M_GridLine",      new Color(0.45f, 0.55f, 0.65f),            false, true),
             ("M_Hover",         new Color(1f, 1f, 1f, 0.20f),              false, true),
-            ("M_WallPanel",     new Color(0.20f, 0.26f, 0.36f, 0.34f),     false, true),   // 半透明发光面板（需求 §2.3）
-            ("M_WallTarget",    new Color(0.90f, 0.93f, 0.98f, 0.85f),     false, true),   // 目标投影：实心亮块
-            ("M_WallCurrent",   new Color(0.25f, 0.78f, 1.00f, 0.92f),     false, true),   // 玩家投影：青蓝叠加
-            ("M_WallMatched",   new Color(0.28f, 0.92f, 0.55f, 1.00f),     false, true),   // 重合：变色反馈
-            ("M_WallBorder",    new Color(0.45f, 0.60f, 0.75f, 0.85f),     false, true),   // 墙面边框
+            ("M_WallPanel",     new Color(0.86f, 0.87f, 0.89f, 0.62f),     false, true),   // 墙面：灰白（全局设定）
+            ("M_WallTarget",    new Color(0.17f, 0.18f, 0.20f, 0.95f),     false, true),   // 目标投影：灰黑（全局设定）
+            ("M_WallCurrent",   new Color(0.25f, 0.78f, 1.00f, 0.92f),     false, true),   // 超出：蓝（全局设定）
+            ("M_WallMatched",   new Color(0.28f, 0.92f, 0.55f, 1.00f),     false, true),   // 正确：绿（全局设定）
+            ("M_WallBorder",    new Color(0.34f, 0.36f, 0.39f, 0.85f),     false, true),   // 墙面边框
             ("M_DragTrail",     new Color(0.65f, 0.85f, 1f, 0.85f),        false, true),
         };
 

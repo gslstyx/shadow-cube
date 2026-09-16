@@ -62,8 +62,9 @@ namespace ShadowCube.Game
         private Material _currentMat;
         private Material _matchedMat;
 
-        private static readonly Color FallbackPanelColor = new(0.20f, 0.24f, 0.32f, 0.30f);
-        private static readonly Color FallbackTargetColor = new(0.90f, 0.93f, 0.98f, 0.85f);
+        // 墙面色板（全局统一设定，所有关卡一致）：墙面灰白 / 目标投影灰黑 / 超出蓝 / 正确绿
+        private static readonly Color FallbackPanelColor = new(0.86f, 0.87f, 0.89f, 0.62f);
+        private static readonly Color FallbackTargetColor = new(0.17f, 0.18f, 0.20f, 0.95f);
         private static readonly Color FallbackCurrentColor = new(0.25f, 0.78f, 1.00f, 0.92f);
         private static readonly Color FallbackMatchedColor = new(0.28f, 0.92f, 0.55f, 1.00f);
 
@@ -73,6 +74,11 @@ namespace ShadowCube.Game
         /// 否则会被背面剔除 —— 表现就是"墙在场景里存在、但画面里完全看不到"。
         /// </summary>
         private static readonly Quaternion QuadFacing = Quaternion.Euler(0f, 180f, 0f);
+
+        // 渲染队列分层（数值越大越后画）：面板 2900 → 边框 2920 → 投影块 3000
+        private const int PanelQueue = 2900;
+        private const int BorderQueue = 2920;
+        private const int CellQueue = 3000;
 
         public void Configure(bool facePositiveX, int poolU, int maxHeight, float cell)
         {
@@ -87,6 +93,14 @@ namespace ShadowCube.Game
             _targetMat = targetMaterial != null ? new Material(targetMaterial) : CreateMaterial(FallbackTargetColor, true);
             _currentMat = currentMaterial != null ? new Material(currentMaterial) : CreateMaterial(FallbackCurrentColor, true);
             _matchedMat = matchedMaterial != null ? new Material(matchedMaterial) : CreateMaterial(FallbackMatchedColor, true);
+
+            // 透明队列是按包围盒中心排序的：面板面积大、中心离相机更近，会被排到投影块之后绘制，
+            // 于是半透明面板直接糊在投影上（灰白墙面下尤其明显）。这里显式分层：
+            // 面板 → 边框 → 投影块，保证投影永远画在墙面上方。
+            _panelMat.renderQueue = PanelQueue;
+            _targetMat.renderQueue = CellQueue;
+            _currentMat.renderQueue = CellQueue;
+            _matchedMat.renderQueue = CellQueue;
 
             // 面板（背景发光面）：尺寸在 Show() 中按当前投影表宽度调整
             _panel = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -157,7 +171,7 @@ namespace ShadowCube.Game
             if (_panelMat != null)
             {
                 var c = panelMaterial != null ? panelMaterial.color : FallbackPanelColor;
-                _panelMat.color = solved ? new Color(highlight.r, highlight.g, highlight.b, 0.28f) : c;
+                _panelMat.color = solved ? new Color(highlight.r, highlight.g, highlight.b, c.a) : c;
             }
 
             if (_matchedMat != null && matchedMaterial != null)
@@ -254,9 +268,11 @@ namespace ShadowCube.Game
             _border.positionCount = 5;
             _border.startWidth = _border.endWidth = 0.03f;
             _border.numCapVertices = 0;
-            _border.material = borderMaterial != null
+            var borderMat = borderMaterial != null
                 ? new Material(borderMaterial)
                 : CreateMaterial(new Color(0.45f, 0.55f, 0.65f, 0.8f), true);
+            borderMat.renderQueue = BorderQueue;
+            _border.material = borderMat;
             _border.gameObject.SetActive(false);
         }
 

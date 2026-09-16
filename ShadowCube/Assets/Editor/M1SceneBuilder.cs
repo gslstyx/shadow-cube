@@ -170,15 +170,33 @@ namespace ShadowCube.EditorTools
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.08f, 0.09f, 0.11f);
 
-            // 相机挂在云台下，云台绕 Y 轴旋转（含两面墙）→ 视角旋转时墙跟随
+            // 相机挂在云台下：云台负责水平旋转（两面墙一并跟随），相机的本地位置/朝向由
+            // (方位角, 俯仰, 距离) 计算 → 垂直俯仰时绕着平台升降，墙保持竖直
             var rigGo = new GameObject("CameraRig");
             rigGo.transform.position = Vector3.zero;
-            rigGo.AddComponent<CameraRig>();
+            var rig = rigGo.AddComponent<CameraRig>();
+            rig.config = EnsureCameraConfig();
+
             cam.transform.SetParent(rigGo.transform, true);
 
             float span = Mathf.Max(level.width, level.depth);
-            cam.transform.position = new Vector3(span * 1.15f, level.maxHeight * 1.6f + 5f, span * 1.45f);
-            cam.transform.LookAt(new Vector3(0f, level.maxHeight * 0.5f, 0f));
+            var pivot = new Vector3(0f, level.maxHeight * 0.5f, 0f);
+            float distance = span * (rig.config != null ? rig.config.distancePerSpan : 2.5f);
+
+            rig.Configure(cam, pivot, distance);
+        }
+
+        /// <summary>相机手感配置资产：已存在则保留（不覆盖调好的数值）</summary>
+        private static CameraConfig EnsureCameraConfig()
+        {
+            const string path = "Assets/Data/CameraConfig.asset";
+            var config = AssetDatabase.LoadAssetAtPath<CameraConfig>(path);
+            if (config != null) return config;
+
+            config = ScriptableObject.CreateInstance<CameraConfig>();
+            AssetDatabase.CreateAsset(config, path);
+            Debug.Log($"[ShadowCube] 已创建相机配置 {path}（enableYaw/enablePitch/snapEnabled/snapAngle/pitchMin/pitchMax/rotateSensitivity/damping）");
+            return config;
         }
 
         private static void AddToBuildSettings()

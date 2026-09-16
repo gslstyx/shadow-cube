@@ -153,6 +153,11 @@ namespace ShadowCube.Tests.PlayMode
                 var quadPixel = Sample(tex, cam, quad.transform.position);
                 Assert.Greater(Diff(quadPixel, background), 0.05f,
                     $"{wall.name} 的目标投影块没有出现在画面里（像素 {quadPixel} ≈ 背景色）");
+
+                // 透明队列排序回归：灰白墙面面积大、中心更靠近相机，若队列设置不当会把投影盖住
+                Assert.Less(quadPixel.grayscale, panelPixel.grayscale - 0.10f,
+                    $"{wall.name} 的目标投影块被墙面面板盖住了（投影 {quadPixel.grayscale:F3} vs 墙面 {panelPixel.grayscale:F3}）" +
+                    "—— 检查渲染队列：面板必须早于投影块绘制");
             }
 
             rt.Release();

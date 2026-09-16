@@ -107,6 +107,7 @@ namespace ShadowCube.Game
         private Material _hoverMat;
         private bool _rotating;
         private float _lastPointerX;
+        private float _lastPointerY;
         private ProjectionWallView _wallLeft;
         private ProjectionWallView _wallFront;
         private Material _voxelMat;
@@ -299,18 +300,23 @@ namespace ShadowCube.Game
 
             bool pressed = Input.GetMouseButton(0);
 
-            // 旋转分支：按在平台/方块之外 → 拖动旋转视角
-            if (Input.GetMouseButtonDown(0) && !TryPickCell(cam, out _, out _))
+            // 旋转分支：按在平台/方块之外 → 拖动旋转视角（水平 + 垂直俯仰）
+            bool canRotate = Rig == null || Rig.RotationEnabled;
+
+            if (Input.GetMouseButtonDown(0) && canRotate && !TryPickCell(cam, out _, out _))
             {
                 _rotating = true;
                 _lastPointerX = Input.mousePosition.x;
+                _lastPointerY = Input.mousePosition.y;
                 Rig?.BeginDrag();
             }
             else if (_rotating && pressed)
             {
                 float dx = Input.mousePosition.x - _lastPointerX;
+                float dy = Input.mousePosition.y - _lastPointerY;
                 _lastPointerX = Input.mousePosition.x;
-                Rig?.Drag(dx);
+                _lastPointerY = Input.mousePosition.y;
+                Rig?.Drag(dx, dy);
             }
 
             if (Input.GetMouseButtonUp(0) && _rotating)

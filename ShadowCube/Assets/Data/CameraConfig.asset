@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ad3aaf6454fc24d408a5e0e790b76ea4, type: 3}
+  m_Name: CameraConfig
+  m_EditorClassIdentifier: ShadowCube.Game::ShadowCube.Game.CameraConfig
+  enableYaw: 1
+  enablePitch: 1
+  snapEnabled: 1
+  snapAngle: 90
+  pitchMin: 15
+  pitchMax: 75
+  rotateSensitivity: 0.3
+  damping: 0.15
+  defaultPitch: 42
+  defaultAzimuth: 38.4
+  distancePerSpan: 2.5
