@@ -13,6 +13,9 @@ Shadow Cube 项目统计台账：自动统计 → 与文档标记值比对 → �
         <!-- STAT:EDIT_COUNT -->53<!-- /STAT:EDIT_COUNT -->
     本脚本统计出真值后，替换标记之间的内容。
 
+    注意：写在行内代码 `...` 或代码块 ```...``` 中的标记视为「示例」，不参与扫描与回写，
+    否则文档中讲解标记用法的示例会被误判（见 PROB-ENV-11）。
+
 用法：
     python3 tools/stats.py --check                        # 只比对（退出码 0=一致，2=有差异）
     python3 tools/stats.py --check --edit=59 --play=76    # 带入本次实测的测试条数
@@ -51,6 +54,18 @@ PROB_CATEGORIES = {
 ANY_MARK_RE = re.compile(
     r"(<!--\s*STAT:([A-Z_]+)\s*-->)(.*?)(<!--\s*/STAT:\2\s*-->)", re.S
 )
+
+# 行内代码 `...` 与代码块 ```...``` 中的内容视为「示例」，不参与托管
+# （否则文档里讲解标记用法的示例会被误判成需要回写的标记位）
+CODE_SPLIT_RE = re.compile(r"(```.*?```|`[^`\n]*`)", re.S)
+
+
+def segments(text):
+    """把文本切成 (是否代码区, 片段)；只对非代码区做扫描与回写。"""
+    for part in CODE_SPLIT_RE.split(text):
+        if not part:
+            continue
+        yield (CODE_SPLIT_RE.fullmatch(part) is not None, part)
 
 
 # ── 统计 ────────────────────────────────────────────────────────
@@ -119,15 +134,18 @@ def expected(args) -> dict:
 
 # ── 标记扫描 / 回写 ──────────────────────────────────────────────
 def scan_marks() -> dict:
-    """{统计名: [(文件, 当前值), ...]}"""
+    """{统计名: [(文件, 当前值), ...]}（跳过代码块/行内代码中的示例）"""
     marks: dict[str, list] = {}
     for f in sorted(DOCS.glob("*.md")):
         try:
             text = f.read_text(encoding="utf-8")
         except OSError:
             continue
-        for m in ANY_MARK_RE.finditer(text):
-            marks.setdefault(m.group(2), []).append((f, m.group(3)))
+        for is_code, seg in segments(text):
+            if is_code:
+                continue
+            for m in ANY_MARK_RE.finditer(seg):
+                marks.setdefault(m.group(2), []).append((f, m.group(3)))
     return marks
 
 
@@ -151,7 +169,10 @@ def sync(exp: dict) -> int:
             changed += 1
             return m.group(1) + new + m.group(4)
 
-        new_text = ANY_MARK_RE.sub(repl, text)
+        out = []
+        for is_code, seg in segments(text):
+            out.append(seg if is_code else ANY_MARK_RE.sub(repl, seg))
+        new_text = "".join(out)
         if new_text != text:
             f.write_text(new_text, encoding="utf-8")
     return changed
