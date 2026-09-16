@@ -26,6 +26,7 @@ namespace ShadowCube.EditorTools
             ("M_WallMatched",   new Color(0.28f, 0.92f, 0.55f, 1.00f),     false, true),   // 正确：绿（全局设定）
             ("M_WallBorder",    new Color(0.34f, 0.36f, 0.39f, 0.85f),     false, true),   // 墙面边框
             ("M_DragTrail",     new Color(0.65f, 0.85f, 1f, 0.85f),        false, true),
+            ("M_Hand",          new Color(0.35f, 0.85f, 1f, 0.60f),        false, true),   // 提示演示的手指指示物
         };
 
         public static void Build()

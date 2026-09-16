@@ -40,6 +40,7 @@ namespace ShadowCube.EditorTools
                 wallMatched = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_WallMatched.mat"),
                 wallBorder = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_WallBorder.mat"),
                 trail = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_DragTrail.mat"),
+                hand = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_Hand.mat"),
             };
 
             // 进度（存档 + 关卡目录）
@@ -82,9 +83,23 @@ namespace ShadowCube.EditorTools
             var settlement = settlementGo.AddComponent<SettlementPanel>();
             settlement.controller = controller;
 
-            // 新手引导（仅首次触发）
+            // 新手引导（仅第 1 关 + 首次游玩触发；遮罩不拦截输入）
             var tutorialGo = new GameObject("TutorialOverlay");
-            tutorialGo.AddComponent<TutorialOverlay>().progress = progress;
+            var tutorial = tutorialGo.AddComponent<TutorialOverlay>();
+            tutorial.progress = progress;
+            tutorial.controller = controller;
+
+            // 提示演示（需求 §2.2-F）：相机复位 → 拖拽生成 → 拖拽消除 → 交还操作
+            var demoGo = new GameObject("HintDemoPlayer");
+            var demo = demoGo.AddComponent<HintDemoPlayer>();
+            demo.handMaterial = mats.hand;
+
+            // 提示服务（需求 §2.2-G）：1~5 关免费，第 6 关起看激励视频（M5 前用空实现）
+            var hintGo = new GameObject("HintService");
+            var hint = hintGo.AddComponent<HintService>();
+            hint.controller = controller;
+            hint.demo = demo;
+            hint.freeHintLevels = 5;
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddToBuildSettings();

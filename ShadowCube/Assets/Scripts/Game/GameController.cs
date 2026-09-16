@@ -73,6 +73,9 @@ namespace ShadowCube.Game
         /// <summary>方块对象池中的空闲数量（M4 性能：避免频繁创建/销毁）</summary>
         public int PooledVoxelCount => _voxelPool.Count;
 
+        /// <summary>为 true 时屏蔽玩法输入（提示演示期间使用；UI 按钮仍可用）</summary>
+        public bool InputBlocked { get; set; }
+
         /// <summary>后墙当前是否显示 X-Y 投影表（随相机旋转变化，供测试/调试）</summary>
         public bool BackWallUsesXY { get; private set; }
         /// <summary>左墙当前是否显示 X-Y 投影表</summary>
@@ -161,7 +164,7 @@ namespace ShadowCube.Game
 
         private void Update()
         {
-            if (_grid == null) return;
+            if (_grid == null || InputBlocked) return;
 
             HandlePointer();
             if (Input.GetKeyDown(KeyCode.R)) ResetLevel();
@@ -422,6 +425,9 @@ namespace ShadowCube.Game
 
         // ── 对外可调用的操作（UI / 自动化测试）──────────────────
         public bool HasVoxelInColumn(int x, int z) => _grid != null && _grid.GetTopHeight(x, z) >= 0;
+
+        /// <summary>格中心 → 本地坐标（提示演示 / 测试用）</summary>
+        public Vector3 CellCenter(int x, int y, int z) => CellToWorld(new Vector3Int(x, y, z));
 
         public bool AddAt(int x, int z)
         {
