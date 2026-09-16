@@ -1,106 +1,77 @@
-using System.IO;
+using ShadowCube.Game;
 using UnityEditor;
 using UnityEngine;
 
 namespace ShadowCube.EditorTools
 {
     /// <summary>
-    /// 生成运行时需要的材质资产。
-    /// 关键：Shader.Find 在打包后只能找到"被引用过"的 shader，代码里凭空 new Material(UrpLit)
+    /// 生成/维护运行时需要的材质资产。
+    /// 关键：`Shader.Find` 在打包后只能找到"被引用过"的 shader，代码里凭空 new Material(UrpLit)
     /// 在真机上会拿到 null（编辑器里却正常）。改为资产引用后，shader 必然进包。
+    /// 已存在的资产**原地更新**（保留 GUID，避免场景引用失效）。
     /// </summary>
     public static class ShadowCubeMaterialBuilder
     {
         public const string Dir = "Assets/Materials";
 
-        [MenuItem("Tools/Shadow Cube/9) 生成运行时材质资产")]
+        private static readonly (string name, Color color, bool lit, bool transparent)[] Definitions =
+        {
+            ("M_Platform",      new Color(0.18f, 0.18f, 0.20f),            true,  false),
+            ("M_Voxel",         new Color(0.85f, 0.87f, 0.90f),            true,  false),
+            ("M_GridLine",      new Color(0.45f, 0.55f, 0.65f),            false, true),
+            ("M_Hover",         new Color(1f, 1f, 1f, 0.20f),              false, true),
+            ("M_WallPanel",     new Color(0.20f, 0.26f, 0.36f, 0.34f),     false, true),   // 半透明发光面板（需求 §2.3）
+            ("M_WallTarget",    new Color(0.90f, 0.93f, 0.98f, 0.85f),     false, true),   // 目标投影：实心亮块
+            ("M_WallCurrent",   new Color(0.25f, 0.78f, 1.00f, 0.92f),     false, true),   // 玩家投影：青蓝叠加
+            ("M_WallMatched",   new Color(0.28f, 0.92f, 0.55f, 1.00f),     false, true),   // 重合：变色反馈
+            ("M_WallBorder",    new Color(0.45f, 0.60f, 0.75f, 0.85f),     false, true),   // 墙面边框
+            ("M_DragTrail",     new Color(0.65f, 0.85f, 1f, 0.85f),        false, true),
+        };
+
         public static void Build()
         {
-            if (!AssetDatabase.IsValidFolder(Dir))
-                AssetDatabase.CreateFolder("Assets", "Materials");
+            EnsureFolder();
 
-            Create("M_Platform", new Color(0.18f, 0.18f, 0.20f), lit: true, transparent: false);
-            Create("M_Voxel", new Color(0.85f, 0.87f, 0.90f), lit: true, transparent: false);
-            Create("M_GridLine", new Color(0.45f, 0.55f, 0.65f), lit: false, transparent: true);
-            Create("M_Hover", new Color(1f, 1f, 1f, 0.20f), lit: false, transparent: true);
-            Create("M_WallTarget", new Color(0.35f, 0.35f, 0.35f, 0.25f), lit: false, transparent: true);
-            Create("M_WallCurrent", new Color(0.06f, 0.06f, 0.06f), lit: false, transparent: false);
-            Create("M_DragTrail", new Color(0.65f, 0.85f, 1f, 0.85f), lit: false, transparent: true);
+            foreach (var def in Definitions)
+                Apply(def.name, def.color, def.lit, def.transparent);
 
             AssetDatabase.SaveAssets();
-            Debug.Log($"[ShadowCube] 运行时材质资产生成完毕（{Dir}）");
+            Debug.Log($"[ShadowCube] 运行时材质资产已就绪（{Dir}，共 {Definitions.Length} 个）");
         }
 
         /// <summary>确保材质存在并返回（重复调用安全）</summary>
         public static Material Ensure(string name, Color color, bool lit, bool transparent)
         {
-            if (!AssetDatabase.IsValidFolder(Dir))
-                AssetDatabase.CreateFolder("Assets", "Materials");
+            EnsureFolder();
+            return Apply(name, color, lit, transparent);
+        }
 
+        private static Material Apply(string name, Color color, bool lit, bool transparent)
+        {
             string path = $"{Dir}/{name}.mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+
             if (material == null)
             {
-                Create(name, color, lit, transparent);
-                material = AssetDatabase.LoadAssetAtPath<Material>(path);
+                var shader = Shader.Find(lit ? "Universal Render Pipeline/Lit" : "Universal Render Pipeline/Unlit")
+                          ?? Shader.Find("Standard");
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
             }
+
+            material.color = color;
+
+            if (transparent) MaterialUtils.SetTransparent(material);
+            else MaterialUtils.SetOpaque(material);
+
+            EditorUtility.SetDirty(material);
             return material;
         }
 
-        private static void Create(string name, Color color, bool lit, bool transparent)
+        private static void EnsureFolder()
         {
-            string path = $"{Dir}/{name}.mat";
-            var shader = Shader.Find(lit ? "Universal Render Pipeline/Lit" : "Universal Render Pipeline/Unlit")
-                      ?? Shader.Find("Standard");
-
-            var material = new Material(shader) { color = color };
-
-            if (!lit)
-            {
-                // Unlit 无需额外配置；Transparent 需要混合设置
-            }
-
-            if (transparent)
-            {
-                material.SetFloat("_Surface", 1f);
-                material.SetFloat("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                material.SetFloat("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                material.SetFloat("_ZWrite", 0f);
-                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                material.SetOverrideEnabled("_SURFACE_TYPE_TRANSPARENT", true);
-            }
-
-            AssetDatabase.CreateAsset(material, path);
-        }
-
-        private static void SetOverrideEnabled(this Material mat, string keyword, bool value)
-        {
-            if (value) mat.EnableKeyword(keyword); else mat.DisableKeyword(keyword);
-        }
-
-        [MenuItem("Tools/Shadow Cube/10) 清理孤儿材质资产")]
-        public static void CleanOrphans()
-        {
-            if (!Directory.Exists(Dir)) return;
-
-            foreach (var file in Directory.GetFiles(Dir, "*.mat"))
-            {
-                var material = AssetDatabase.LoadAssetAtPath<Material>(file);
-                if (material != null && !IsReferenced(material))
-                    Debug.LogWarning($"[ShadowCube] 未被引用的材质（可手动删除）：{file}");
-            }
-        }
-
-        private static bool IsReferenced(Material material)
-        {
-            string guid = AssetDatabase.GetAssetPath(material);
-            foreach (var scene in AssetDatabase.FindAssets("t:Scene", new[] { "Assets/Scenes" }))
-            {
-                string path = AssetDatabase.GUIDToAssetPath(scene);
-                if (File.ReadAllText(path).Contains(System.IO.Path.GetFileNameWithoutExtension(guid)))
-                    return true;
-            }
-            return false;
+            if (!AssetDatabase.IsValidFolder(Dir))
+                AssetDatabase.CreateFolder("Assets", "Materials");
         }
     }
 }

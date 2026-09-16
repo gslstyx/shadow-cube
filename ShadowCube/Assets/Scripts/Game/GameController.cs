@@ -39,8 +39,11 @@ namespace ShadowCube.Game
         public Material voxelMaterial;
         public Material gridLineMaterial;
         public Material hoverMaterial;
+        public Material wallPanelMaterial;
         public Material wallTargetMaterial;
         public Material wallCurrentMaterial;
+        public Material wallMatchedMaterial;
+        public Material wallBorderMaterial;
         public Material dragTrailMaterial;
 
         [Header("动效")]
@@ -59,6 +62,11 @@ namespace ShadowCube.Game
 
         /// <summary>平台网格线（运行时可见）</summary>
         public LineRenderer GridLines { get; private set; }
+
+        /// <summary>左墙（投影到 Z-Y 面）</summary>
+        public ProjectionWallView WallLeft => _wallLeft;
+        /// <summary>后墙（投影到 X-Y 面）</summary>
+        public ProjectionWallView WallFront => _wallFront;
 
         private GameObject _platformGo;
 
@@ -217,7 +225,6 @@ namespace ShadowCube.Game
             line.startWidth = line.endWidth = 0.02f;
             line.numCapVertices = 0;
 
-            var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
             var mat = Mat(gridLineMaterial, gridColor, transparent: true);
             line.material = mat;
 
@@ -247,8 +254,11 @@ namespace ShadowCube.Game
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPosition;
             var wall = go.AddComponent<ProjectionWallView>();
+            wall.panelMaterial = wallPanelMaterial;
             wall.targetMaterial = wallTargetMaterial;
             wall.currentMaterial = wallCurrentMaterial;
+            wall.matchedMaterial = wallMatchedMaterial;
+            wall.borderMaterial = wallBorderMaterial;
             wall.Configure(facePositiveX, poolU, level.maxHeight, cellSize);
             return wall;
         }
@@ -657,16 +667,11 @@ namespace ShadowCube.Game
 
         private static Material CreateMaterial(Color color, bool transparent = false)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var shader = Shader.Find("Universal Render Pipeline/Lit")
+                      ?? Shader.Find("Universal Render Pipeline/Unlit")
+                      ?? Shader.Find("Standard");
             var mat = new Material(shader) { color = color };
-            if (transparent)
-            {
-                mat.SetFloat("_Surface", 1f);
-                mat.SetFloat("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetFloat("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                mat.SetFloat("_ZWrite", 0f);
-                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-            }
+            if (transparent) MaterialUtils.SetTransparent(mat);
             return mat;
         }
 

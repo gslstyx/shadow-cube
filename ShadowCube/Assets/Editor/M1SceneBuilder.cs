@@ -34,8 +34,11 @@ namespace ShadowCube.EditorTools
                 voxel = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_Voxel.mat"),
                 grid = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_GridLine.mat"),
                 hover = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_Hover.mat"),
+                wallPanel = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_WallPanel.mat"),
                 wallTarget = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_WallTarget.mat"),
                 wallCurrent = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_WallCurrent.mat"),
+                wallMatched = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_WallMatched.mat"),
+                wallBorder = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_WallBorder.mat"),
                 trail = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_DragTrail.mat"),
             };
 
@@ -62,8 +65,11 @@ namespace ShadowCube.EditorTools
             controller.voxelMaterial = mats.voxel;
             controller.gridLineMaterial = mats.grid;
             controller.hoverMaterial = mats.hover;
+            controller.wallPanelMaterial = mats.wallPanel;
             controller.wallTargetMaterial = mats.wallTarget;
             controller.wallCurrentMaterial = mats.wallCurrent;
+            controller.wallMatchedMaterial = mats.wallMatched;
+            controller.wallBorderMaterial = mats.wallBorder;
             controller.dragTrailMaterial = mats.trail;
 
             // HUD + 结算

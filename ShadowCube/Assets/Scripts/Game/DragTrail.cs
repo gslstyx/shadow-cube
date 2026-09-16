@@ -40,11 +40,7 @@ namespace ShadowCube.Game
             var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
             // 轨迹透明度会动态变化，必须用实例拷贝
             _material = trailMaterial != null ? new Material(trailMaterial) : new Material(shader) { color = color };
-            _material.SetFloat("_Surface", 1f);
-            _material.SetFloat("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            _material.SetFloat("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            _material.SetFloat("_ZWrite", 0f);
-            _material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            MaterialUtils.SetTransparent(_material);
             _line.material = _material;
             _line.startColor = color;
             _line.endColor = color;
