@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: M_Hand
+  m_Name: M_Star
   m_Shader: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -55,11 +55,11 @@ Material:
     - _XRMotionVectorsPass: 1
     - _ZWrite: 0
     m_Colors:
-    - _BaseColor: {r: 0.35, g: 0.85, b: 1, a: 0.6}
-    - _Color: {r: 0.34999996, g: 0.85, b: 1, a: 0.6}
+    - _BaseColor: {r: 0.85, g: 0.88, b: 0.92, a: 0.6}
+    - _Color: {r: 0.85, g: 0.88, b: 0.92, a: 0.6}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!114 &4580444146478183214
+--- !u!114 &2335525855851840636
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}

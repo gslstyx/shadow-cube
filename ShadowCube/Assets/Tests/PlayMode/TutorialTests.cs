@@ -22,6 +22,7 @@ namespace ShadowCube.Tests.PlayMode
         [UnitySetUp]
         public IEnumerator 加载场景并重置进度()
         {
+            Loc.Language = Language.English;   // 文案已本地化；测试固定用英语断言
             SceneManager.LoadScene("M1_Prototype");
             yield return null;
 

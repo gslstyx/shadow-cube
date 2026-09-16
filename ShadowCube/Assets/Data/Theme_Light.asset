@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32428ca01819a4825aba4c4fac233747, type: 3}
+  m_Name: Theme_Light
+  m_EditorClassIdentifier: ShadowCube.Game::ShadowCube.Game.ThemeProfile
+  themeName: "Light\uFF08\u53C2\u8003\u56FE\u57FA\u7EBF\uFF09"
+  backgroundColor: {r: 0.94, g: 0.95, b: 0.96, a: 1}
+  platformColor: {r: 0.88, g: 0.89, b: 0.91, a: 1}
+  gridColor: {r: 0.55, g: 0.57, b: 0.6, a: 1}
+  voxelColor: {r: 0.2, g: 0.21, b: 0.23, a: 1}
+  enableFog: 1
+  fogColor: {r: 0.94, g: 0.95, b: 0.96, a: 1}
+  fogStart: 16
+  fogEnd: 52
+  enableStarDust: 1
+  starColor: {r: 0.72, g: 0.76, b: 0.82, a: 0.55}
+  starCount: 140
+  starRadius: 26

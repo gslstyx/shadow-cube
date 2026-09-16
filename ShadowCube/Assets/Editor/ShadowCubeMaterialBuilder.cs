@@ -27,6 +27,7 @@ namespace ShadowCube.EditorTools
             ("M_WallBorder",    new Color(0.34f, 0.36f, 0.39f, 0.85f),     false, true),   // 墙面边框
             ("M_DragTrail",     new Color(0.65f, 0.85f, 1f, 0.85f),        false, true),
             ("M_Hand",          new Color(0.35f, 0.85f, 1f, 0.60f),        false, true),   // 提示演示的手指指示物
+            ("M_Star",          new Color(0.85f, 0.88f, 0.92f, 0.60f),     false, true),   // 星尘粒子
         };
 
         public static void Build()

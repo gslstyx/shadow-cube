@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: ShadowCube.Core::ShadowCube.Core.LevelData
   width: 4
   depth: 4
-  maxHeight: 2
+  maxHeight: 1
   solution:
+  - {x: 0, y: 0, z: 0}
+  - {x: 0, y: 0, z: 1}
+  - {x: 0, y: 0, z: 2}
   - {x: 0, y: 0, z: 3}
-  - {x: 0, y: 1, z: 1}
-  - {x: 0, y: 1, z: 2}
-  - {x: 0, y: 1, z: 3}
   levelId: C1-L01
   levelName: C1-L01
   chapterId: 1

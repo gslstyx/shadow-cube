@@ -41,6 +41,7 @@ namespace ShadowCube.EditorTools
                 wallBorder = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_WallBorder.mat"),
                 trail = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_DragTrail.mat"),
                 hand = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_Hand.mat"),
+                star = AssetDatabase.LoadAssetAtPath<Material>($"{ShadowCubeMaterialBuilder.Dir}/M_Star.mat"),
             };
 
             // 进度（存档 + 关卡目录）
@@ -72,6 +73,24 @@ namespace ShadowCube.EditorTools
             controller.wallMatchedMaterial = mats.wallMatched;
             controller.wallBorderMaterial = mats.wallBorder;
             controller.dragTrailMaterial = mats.trail;
+            controller.starDustMaterial = mats.star;
+
+            // 视觉基线：默认用「浅色（参考图基线）」，深色异次元主题已生成在 Assets/Data/Theme_Dark.asset
+            EnsureTheme("Assets/Data/Theme_Light.asset", t =>
+            {
+                t.themeName = "Light（参考图基线）";
+            });
+            EnsureTheme("Assets/Data/Theme_Dark.asset", t =>
+            {
+                t.themeName = "Dark（异次元）";
+                t.backgroundColor = new Color(0.08f, 0.09f, 0.11f, 1f);
+                t.platformColor = new Color(0.18f, 0.18f, 0.20f, 1f);
+                t.gridColor = new Color(0.45f, 0.55f, 0.65f, 1f);
+                t.voxelColor = new Color(0.85f, 0.87f, 0.90f, 1f);
+                t.fogColor = new Color(0.08f, 0.09f, 0.11f, 1f);
+                t.starColor = new Color(0.72f, 0.78f, 0.90f, 0.5f);
+            });
+            controller.theme = AssetDatabase.LoadAssetAtPath<ThemeProfile>("Assets/Data/Theme_Light.asset");
 
             // HUD + 结算
             var hudGo = new GameObject("GameHud");
@@ -199,6 +218,18 @@ namespace ShadowCube.EditorTools
             float distance = span * (rig.config != null ? rig.config.distancePerSpan : 2.5f);
 
             rig.Configure(cam, pivot, distance);
+        }
+
+        /// <summary>视觉主题资产：已存在则保留（不覆盖调好的配色）</summary>
+        private static ThemeProfile EnsureTheme(string path, System.Action<ThemeProfile> configure)
+        {
+            var theme = AssetDatabase.LoadAssetAtPath<ThemeProfile>(path);
+            if (theme != null) return theme;
+
+            theme = ScriptableObject.CreateInstance<ThemeProfile>();
+            configure?.Invoke(theme);
+            AssetDatabase.CreateAsset(theme, path);
+            return theme;
         }
 
         /// <summary>相机手感配置资产：已存在则保留（不覆盖调好的数值）</summary>

@@ -65,7 +65,13 @@ namespace ShadowCube.EditorTools
 
         /// <summary>生成一批关卡资产（id 形如 C{chapter}-L{index:D2}）</summary>
         [MenuItem("Tools/Shadow Cube/7) 生成关卡（前 2 章 × 10 关）")]
-        public static void GenerateTwoChapters()
+        public static void GenerateTwoChapters() => GenerateTwoChapters(false);
+
+        /// <summary>按最新曲线重建关卡（覆盖已有资产）：修改层数/难度曲线后用它重新量产</summary>
+        [MenuItem("Tools/Shadow Cube/7b) 重建关卡（按 1→3 层渐进曲线，覆盖）")]
+        public static void RegenerateTwoChapters() => GenerateTwoChapters(true);
+
+        public static void GenerateTwoChapters(bool overwrite)
         {
             const string dir = "Assets/Data/Levels";
             int seed = 20260916;
@@ -78,15 +84,28 @@ namespace ShadowCube.EditorTools
                     string id = $"C{chapter}-L{i:D2}";
                     string path = $"{dir}/{id}.asset";
 
-                    if (AssetDatabase.LoadAssetAtPath<LevelData>(path) != null) continue;
+                    bool exists = AssetDatabase.LoadAssetAtPath<LevelData>(path) != null;
+                    if (exists && !overwrite) continue;
 
-                    // 难度递增：块数 4 → 13，尺寸 4x4 → 6x6，高度 2 → 4
+                    // 难度递增：块数 4 → 13，尺寸 4x4 → 6x6
                     int step = (chapter - 1) * 10 + (i - 1);
                     int size = 4 + step / 7;
-                    int height = 2 + step / 10;
                     int blocks = Mathf.Clamp(4 + step / 2, 4, 13);
 
-                    var level = Generate(id, size, size, Mathf.Min(height, 4), blocks, seed + step);
+                    // 层数曲线（需求 §4.3）：第 1 章 1 → 3 层渐进
+                    //   1~2 关：1 层（入门）｜ 3~6 关：2 层 ｜ 7~10 关：3 层
+                    //   第 2 章：3 层起步，后段放开到 4 层
+                    int height = step switch
+                    {
+                        < 2 => 1,
+                        < 6 => 2,
+                        < 10 => 3,
+                        _ => 3 + (step - 10) / 7
+                    };
+
+                    if (exists) AssetDatabase.DeleteAsset(path);
+
+                    var level = Generate(id, size, size, Mathf.Clamp(height, 1, 4), blocks, seed + step);
                     AssetDatabase.CreateAsset(level, path);
                     created++;
                 }
@@ -94,7 +113,7 @@ namespace ShadowCube.EditorTools
 
             AssetDatabase.SaveAssets();
             MenuSceneBuilder.RefreshCatalog();
-            Debug.Log($"[ShadowCube] 关卡生成完成：新增 {created} 关（共 2 章）");
+            Debug.Log($"[ShadowCube] 关卡生成完成：{created} 关（覆盖模式={overwrite}，共 2 章，1→3 层渐进）");
         }
     }
 }

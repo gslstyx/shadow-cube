@@ -1,4 +1,5 @@
 using System;
+using ShadowCube.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -54,7 +55,7 @@ namespace ShadowCube.Game.UI
             var top = UiFactory.CreatePanel(Canvas.transform, "TopBar", UiFactory.PanelColor,
                 new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -150f), Vector2.zero);
 
-            BackButton = UiFactory.CreateButton(top, "Back", "Back", 32,
+            BackButton = UiFactory.CreateButton(top, "Back", Loc.Get("hud.back"), 32,
                 new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(20f, 20f), new Vector2(190f, -20f));
 
             LevelLabel = UiFactory.CreateText(top, "Level", "Level", 38, TextAnchor.LowerCenter,
@@ -64,7 +65,7 @@ namespace ShadowCube.Game.UI
                 new Vector2(0f, 0f), new Vector2(1f, 0.5f), new Vector2(200f, 18f), new Vector2(-200f, 4f));
 
             // 右上：重置（需求 §3.3）+ 最好星级
-            ResetButton = UiFactory.CreateButton(top, "Reset", "Reset", 30,
+            ResetButton = UiFactory.CreateButton(top, "Reset", Loc.Get("hud.reset"), 30,
                 new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-210f, 20f), new Vector2(-20f, -20f));
 
             StarLabel = UiFactory.CreateText(top, "Stars", "Best: -", 26, TextAnchor.MiddleRight,
@@ -84,7 +85,7 @@ namespace ShadowCube.Game.UI
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(-140f, 0f), new Vector2(140f, 0f));
 
             // 右下：提示（需求 §3.3 / §2.2-F）
-            HintButton = UiFactory.CreateButton(bottom, "Hint", "Hint", 32,
+            HintButton = UiFactory.CreateButton(bottom, "Hint", Loc.Get("hud.hint"), 32,
                 new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-210f, 22f), new Vector2(-24f, -22f));
 
             BackButton.onClick.AddListener(OnBackClicked);
@@ -99,7 +100,7 @@ namespace ShadowCube.Game.UI
             if (controller == null || controller.level == null || BlockLabel == null) return;
 
             // 当前 / 最优方块数：让玩家对星级有预期（需求 §3.3）
-            string text = $"{controller.BlockCount} / {controller.level.OptimalCount}";
+            string text = Loc.Get("hud.blocks", controller.BlockCount, controller.level.OptimalCount);
             if (BlockLabel.text != text) BlockLabel.text = text;
         }
 
@@ -123,17 +124,17 @@ namespace ShadowCube.Game.UI
 
             var level = controller.level;
             if (LevelLabel != null)
-                LevelLabel.text = $"Level {level.chapterId}-{level.levelIndex}";
+                LevelLabel.text = Loc.Get("hud.level", level.chapterId, level.levelIndex);
 
             if (SeriesLabel != null)
                 SeriesLabel.text = string.IsNullOrEmpty(level.levelName) ? string.Empty : level.levelName;
 
             int best = controller.progress != null ? controller.progress.GetStars(level) : 0;
             if (StarLabel != null)
-                StarLabel.text = best > 0 ? $"Best: {best}/5" : "Best: -";
+                StarLabel.text = best > 0 ? Loc.Get("hud.best", best) : Loc.Get("hud.bestNone");
 
             if (BlockLabel != null)
-                BlockLabel.text = $"{controller.BlockCount} / {level.OptimalCount}";
+                BlockLabel.text = Loc.Get("hud.blocks", controller.BlockCount, level.OptimalCount);
         }
     }
 }

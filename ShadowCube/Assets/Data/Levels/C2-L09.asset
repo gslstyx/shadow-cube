@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: ShadowCube.Core::ShadowCube.Core.LevelData
   width: 6
   depth: 6
-  maxHeight: 3
+  maxHeight: 4
   solution:
   - {x: 1, y: 0, z: 0}
   - {x: 2, y: 0, z: 0}

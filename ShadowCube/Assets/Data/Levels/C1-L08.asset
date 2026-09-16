@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: ShadowCube.Core::ShadowCube.Core.LevelData
   width: 5
   depth: 5
-  maxHeight: 2
+  maxHeight: 3
   solution:
   - {x: 3, y: 0, z: 3}
   - {x: 3, y: 0, z: 4}
   - {x: 4, y: 0, z: 3}
   - {x: 4, y: 0, z: 4}
-  - {x: 3, y: 1, z: 3}
+  - {x: 2, y: 1, z: 4}
   - {x: 3, y: 1, z: 4}
   - {x: 4, y: 1, z: 4}
   levelId: C1-L08

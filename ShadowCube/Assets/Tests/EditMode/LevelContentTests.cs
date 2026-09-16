@@ -87,6 +87,30 @@ namespace ShadowCube.Tests.EditMode
             }
         }
 
+        /// <summary>需求 §4.3：前 10 关按 1 → 3 层渐进引入</summary>
+        [Test]
+        public void 第一章_层数按1到3渐进()
+        {
+            var map = new Dictionary<string, LevelData>();
+            foreach (var level in AllLevels()) map[level.Id] = level;
+
+            string[][] expected =
+            {
+                new[] { "C1-L01", "C1-L02" },                                   // 1 层（入门）
+                new[] { "C1-L03", "C1-L04", "C1-L05", "C1-L06" },               // 2 层
+                new[] { "C1-L07", "C1-L08", "C1-L09", "C1-L10" }                // 3 层
+            };
+
+            for (int tier = 0; tier < expected.Length; tier++)
+            {
+                foreach (var id in expected[tier])
+                {
+                    if (!map.TryGetValue(id, out var level)) continue;
+                    Assert.AreEqual(tier + 1, level.maxHeight, $"{id} 的 maxHeight 应为 {tier + 1}（1→3 层渐进）");
+                }
+            }
+        }
+
         private static bool HasAny(bool[,] table)
         {
             for (int x = 0; x < table.GetLength(0); x++)

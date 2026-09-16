@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ShadowCube.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -114,8 +115,8 @@ namespace ShadowCube.Game.UI
 
                 button.interactable = unlocked;
                 label.text = unlocked
-                    ? (stars > 0 ? $"{i + 1}\n{stars}/5" : $"{i + 1}")
-                    : "Locked";
+                    ? (stars > 0 ? $"{i + 1}\n{Loc.Get("select.stars", stars)}" : $"{i + 1}")
+                    : Loc.Get("select.locked");
                 label.color = unlocked ? UiFactory.TextColor : new Color(0.55f, 0.55f, 0.58f, 1f);
             }
         }

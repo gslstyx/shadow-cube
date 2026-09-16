@@ -1,3 +1,5 @@
+using System.Collections;
+using ShadowCube.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,13 +12,10 @@ namespace ShadowCube.Game.UI
     /// </summary>
     public class TutorialOverlay : MonoBehaviour
     {
-        private static readonly string[] Steps =
+        /// <summary>引导文案走本地化 key（需求 §0.2），不硬编码</summary>
+        private static readonly string[] StepKeys =
         {
-            "1/5  在平台上按住并拖动，连续生成方块",
-            "2/5  从已有方块上起手拖动，消除方块",
-            "3/5  点 < 或 > 旋转视角，两面墙始终在你左后方",
-            "4/5  两侧墙上的黑色剪影是目标：让投影与它重合（重合的格子会变绿）",
-            "5/5  两面墙全部对上即可过关，方块越少星级越高"
+            "tutorial.step1", "tutorial.step2", "tutorial.step3", "tutorial.step4", "tutorial.step5"
         };
 
         /// <summary>每一步高亮的目标区域（归一化锚点：中心 x, 中心 y, 宽, 高）</summary>
@@ -46,9 +45,11 @@ namespace ShadowCube.Game.UI
 
         public bool IsVisible { get; private set; }
         public int StepIndex { get; private set; }
-        public int TotalSteps => Steps.Length;
+        public int TotalSteps => StepKeys.Length;
 
         private Image[] _highlightEdges;
+        private Image _hand;
+        private Coroutine _handRoutine;
         private float _pulse;
 
         private void Awake()
@@ -88,20 +89,97 @@ namespace ShadowCube.Game.UI
                 CreateEdge(highlight, "Right", new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-6f, 0f), Vector2.zero)
             };
 
+            BuildHand(dim);
+
             var panel = UiFactory.CreatePanel(dim, "Panel", UiFactory.PanelColor,
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-380f, 300f), new Vector2(380f, 640f));
 
-            StepLabel = UiFactory.CreateText(panel, "Step", Steps[0], 34, TextAnchor.MiddleCenter,
+            StepLabel = UiFactory.CreateText(panel, "Step", Loc.Get(StepKeys[0]), 34, TextAnchor.MiddleCenter,
                 new Vector2(0f, 0.35f), new Vector2(1f, 0.9f), new Vector2(30f, 0f), new Vector2(-30f, 0f));
 
-            NextButton = UiFactory.CreateButton(panel, "Next", "Next", 34,
+            NextButton = UiFactory.CreateButton(panel, "Next", Loc.Get("tutorial.next"), 34,
                 new Vector2(0.5f, 0.05f), new Vector2(0.5f, 0.05f), new Vector2(-220f, 0f), new Vector2(220f, 70f));
 
-            SkipButton = UiFactory.CreateButton(panel, "Skip", "Skip", 28,
+            SkipButton = UiFactory.CreateButton(panel, "Skip", Loc.Get("tutorial.skip"), 28,
                 new Vector2(0.5f, 0.05f), new Vector2(0.5f, 0.05f), new Vector2(-140f, -80f), new Vector2(140f, -20f));
 
             NextButton.onClick.AddListener(Next);
             SkipButton.onClick.AddListener(Skip);
+        }
+
+        /// <summary>手指指示物（需求 §2.2-E「手指动画」）：沿当前步骤对应的路径来回滑动</summary>
+        private void BuildHand(Transform parent)
+        {
+            var go = new GameObject("Hand", typeof(RectTransform), typeof(Image));
+            var rect = go.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(46f, 46f);
+            rect.localRotation = Quaternion.Euler(0f, 0f, 45f);
+
+            var image = go.GetComponent<Image>();
+            image.color = new Color(1f, 1f, 1f, 0.85f);
+            image.raycastTarget = false;
+
+            _hand = image;
+            go.SetActive(false);
+        }
+
+        /// <summary>每步的手指路径（参考分辨率 1080×1920，坐标以屏幕中心为原点）</summary>
+        private static (Vector2 from, Vector2 to, bool visible) HandPath(int step) => step switch
+        {
+            0 => (new Vector2(-220f, -80f), new Vector2(220f, -80f), true),    // 拖拽生成
+            1 => (new Vector2(220f, -80f), new Vector2(-220f, -80f), true),    // 拖拽消除（反向）
+            2 => (new Vector2(-110f, -820f), new Vector2(110f, -820f), true),  // 旋转按钮区域
+            _ => (Vector2.zero, Vector2.zero, false)
+        };
+
+        private void RestartHand(int step)
+        {
+            if (_handRoutine != null) { StopCoroutine(_handRoutine); _handRoutine = null; }
+            if (_hand == null) return;
+
+            var path = HandPath(step);
+            if (!path.visible) { _hand.gameObject.SetActive(false); return; }
+
+            _hand.gameObject.SetActive(true);
+            _handRoutine = StartCoroutine(HandAnimation(path.from, path.to));
+        }
+
+        private IEnumerator HandAnimation(Vector2 from, Vector2 to)
+        {
+            var rect = _hand.rectTransform;
+
+            while (true)
+            {
+                rect.anchoredPosition = from;
+                SetHandAlpha(0f);
+                yield return new WaitForSeconds(0.35f);
+
+                SetHandAlpha(0.85f);
+                float t = 0f;
+                while (t < 1.1f)
+                {
+                    t += Time.deltaTime;
+                    rect.anchoredPosition = Vector2.Lerp(from, to, Mathf.Clamp01(t / 1.1f));
+                    yield return null;
+                }
+
+                float u = 0f;
+                while (u < 0.25f)
+                {
+                    u += Time.deltaTime;
+                    SetHandAlpha(0.85f * (1f - Mathf.Clamp01(u / 0.25f)));
+                    yield return null;
+                }
+            }
+        }
+
+        private void SetHandAlpha(float alpha)
+        {
+            if (_hand == null) return;
+            var c = _hand.color;
+            _hand.color = new Color(c.r, c.g, c.b, alpha);
         }
 
         private static Image CreateEdge(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax,
@@ -136,13 +214,17 @@ namespace ShadowCube.Game.UI
         public void Hide()
         {
             IsVisible = false;
+
+            if (_handRoutine != null) { StopCoroutine(_handRoutine); _handRoutine = null; }
+            if (_hand != null) _hand.gameObject.SetActive(false);
+
             if (Canvas != null) Canvas.gameObject.SetActive(false);
         }
 
         public void Next()
         {
             StepIndex++;
-            if (StepIndex >= Steps.Length) { Finish(); return; }
+            if (StepIndex >= StepKeys.Length) { Finish(); return; }
             UpdateContent();
         }
 
@@ -160,14 +242,16 @@ namespace ShadowCube.Game.UI
 
         private void UpdateContent()
         {
-            if (StepLabel != null) StepLabel.text = Steps[StepIndex];
+            if (StepLabel != null) StepLabel.text = Loc.Get(StepKeys[StepIndex]);
             if (NextButton != null)
             {
                 var label = NextButton.GetComponentInChildren<Text>();
-                if (label != null) label.text = StepIndex == Steps.Length - 1 ? "Got it" : "Next";
+                if (label != null)
+                    label.text = Loc.Get(StepIndex == StepKeys.Length - 1 ? "tutorial.gotIt" : "tutorial.next");
             }
 
             ApplyHighlight(StepIndex);
+            RestartHand(StepIndex);
         }
 
         /// <summary>把高亮框移到当前步骤对应的区域（按 1080×1920 参考分辨率定位）</summary>

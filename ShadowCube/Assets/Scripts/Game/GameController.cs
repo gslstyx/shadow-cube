@@ -45,6 +45,11 @@ namespace ShadowCube.Game
         public Material wallMatchedMaterial;
         public Material wallBorderMaterial;
         public Material dragTrailMaterial;
+        public Material starDustMaterial;
+
+        [Header("视觉基线")]
+        [Tooltip("整体主题（背景/平台/网格/方块/氛围）。墙面色板不在此处，按「所有关卡通用」固定在材质资产里")]
+        public ThemeProfile theme;
 
         [Header("动效")]
         public float spawnDuration = 0.14f;
@@ -154,6 +159,8 @@ namespace ShadowCube.Game
                 _voxelRoot.SetParent(transform, false);
             }
 
+            ApplyTheme();
+
             EnsureRig();
             BuildPlatform();
             BuildWalls();
@@ -185,6 +192,73 @@ namespace ShadowCube.Game
             }
 
             Rig.TurnsChanged += _ => RefreshProjection();
+        }
+
+        /// <summary>
+        /// 应用整体视觉基线（需求 §1.2 / §8.4）：背景、平台、网格线、方块颜色 + 雾 + 星尘。
+        /// 墙面色板**不在此处**，保持所有关卡通用。
+        /// </summary>
+        private void ApplyTheme()
+        {
+            if (theme == null) return;
+
+            platformColor = theme.platformColor;
+            gridColor = theme.gridColor;
+            voxelColor = theme.voxelColor;
+
+            if (Camera.main != null)
+            {
+                Camera.main.clearFlags = CameraClearFlags.SolidColor;
+                Camera.main.backgroundColor = theme.backgroundColor;
+            }
+
+            RenderSettings.fog = theme.enableFog;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogColor = theme.fogColor;
+            RenderSettings.fogStartDistance = theme.fogStart;
+            RenderSettings.fogEndDistance = theme.fogEnd;
+
+            if (theme.enableStarDust) BuildStarDust();
+        }
+
+        /// <summary>星尘粒子（异次元氛围，需求 §3.3）：无材质资产时跳过，避免真机 Shader.Find 失败</summary>
+        private void BuildStarDust()
+        {
+            if (starDustMaterial == null)
+            {
+                Debug.LogWarning("[ShadowCube] 未配置星尘材质（starDustMaterial），跳过粒子（真机不做运行时 Shader.Find）");
+                return;
+            }
+
+            if (GameObject.Find($"{name}/StarDust") != null) return;
+
+            var go = new GameObject("StarDust");
+            go.transform.SetParent(transform, false);
+
+            var ps = go.AddComponent<ParticleSystem>();
+            var main = ps.main;
+            main.loop = true;
+            main.startLifetime = 9f;
+            main.startSpeed = 0.1f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.04f, 0.14f);
+            main.maxParticles = Mathf.Max(20, theme.starCount);
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startColor = theme.starColor;
+
+            var emission = ps.emission;
+            emission.rateOverTime = Mathf.Max(1f, theme.starCount / 9f);
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = theme.starRadius;
+
+            var velocity = ps.velocityOverLifetime;
+            velocity.enabled = true;
+            velocity.y = new ParticleSystem.MinMaxCurve(0.02f, 0.10f);
+
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = starDustMaterial;
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
         }
 
         private void BuildPlatform()
@@ -500,10 +574,24 @@ namespace ShadowCube.Game
         {
             if (_grid == null) return;
 
-            _grid.Clear();
+            // 短动效（需求 §2.2-D）：方块错峰消散；网格与 _views 立即清空，
+            // 保证 BlockCount 等接口马上归零，动画只是视觉表现
+            int index = 0;
             foreach (var kv in _views)
-                if (kv.Value != null) RecycleVoxel(kv.Value.gameObject);
+            {
+                var view = kv.Value;
+                if (view == null) continue;
+
+                float duration = despawnDuration + (index++ % 8) * 0.015f;
+                view.PlayDespawn(duration, () =>
+                {
+                    if (view != null && view.gameObject != null && view.gameObject.activeSelf)
+                        RecycleVoxel(view.gameObject);
+                });
+            }
             _views.Clear();
+
+            _grid.Clear();
 
             _solved = false;
             SolvedFeedbackPlayed = false;
@@ -635,16 +723,24 @@ namespace ShadowCube.Game
             Debug.Log($"[ShadowCube] 过关！方块 {_grid.Count} / 最优 {level.OptimalCount} → {StarRating} 星\n{Dump()}");
         }
 
-        /// <summary>过关结算动效：方块按 (x+z) 错峰脉冲，形成波浪扫过</summary>
+        /// <summary>过关结算动效（需求 §3.4）：方块按 (x+z) 错峰 → 波浪脉冲 → 爆散 → 归位重组</summary>
         private void PlaySolvedFeedback()
         {
             SolvedFeedbackPlayed = true;
 
+            float halfW = (level.width - 1) * 0.5f;
+            float halfD = (level.depth - 1) * 0.5f;
+
             foreach (var kv in _views)
             {
                 if (kv.Value == null) continue;
+
                 float delay = (kv.Key.x + kv.Key.z) * 0.05f;
-                kv.Value.PlayPulse(delay);
+
+                var outward = new Vector3(kv.Key.x - halfW, 0.35f, kv.Key.z - halfD);
+                if (outward.sqrMagnitude < 0.0001f) outward = Vector3.up;
+
+                kv.Value.PlaySolvedSequence(delay, outward.normalized);
             }
         }
 

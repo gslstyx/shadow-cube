@@ -29,6 +29,65 @@ namespace ShadowCube.Game
             _routine = StartCoroutine(Pulse(delay, amount, duration));
         }
 
+        /// <summary>
+        /// 过关动效（需求 §3.4）：脉冲波浪 → **方块爆散**（向外飞出并缩小）→ 归位重组。
+        /// 重组而不是消失，保证玩家仍能看到自己搭出的造型。
+        /// </summary>
+        public void PlaySolvedSequence(float delay, Vector3 outward)
+        {
+            if (_routine != null) StopCoroutine(_routine);
+            _routine = StartCoroutine(SolvedSequence(delay, outward));
+        }
+
+        private IEnumerator SolvedSequence(float delay, Vector3 outward)
+        {
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+
+            var basePos = transform.localPosition;
+
+            // ① 波浪脉冲
+            yield return PulseNow(0.18f, 0.26f);
+
+            // ② 爆散：向外飞出 + 缩小
+            float t = 0f;
+            while (t < 0.34f)
+            {
+                t += Time.deltaTime;
+                float k = Mathf.Clamp01(t / 0.34f);
+                transform.localPosition = basePos + outward * (k * 0.55f);
+                transform.localScale = _baseScale * (1f - k);
+                yield return null;
+            }
+
+            // ③ 归位重组
+            t = 0f;
+            while (t < 0.22f)
+            {
+                t += Time.deltaTime;
+                float k = Mathf.Clamp01(t / 0.22f);
+                transform.localPosition = Vector3.Lerp(basePos + outward * 0.55f, basePos, k);
+                transform.localScale = _baseScale * k;
+                yield return null;
+            }
+
+            transform.localPosition = basePos;
+            transform.localScale = _baseScale;
+            _routine = null;
+        }
+
+        private IEnumerator PulseNow(float amount, float duration)
+        {
+            float t = 0f;
+            while (t < duration)
+            {
+                t += Time.deltaTime;
+                float k = Mathf.Clamp01(t / duration);
+                transform.localScale = _baseScale * (1f + amount * Mathf.Sin(k * Mathf.PI));
+                yield return null;
+            }
+            transform.localScale = _baseScale;
+        }
+
         private IEnumerator Pulse(float delay, float amount, float duration)
         {
             if (delay > 0f) yield return new WaitForSeconds(delay);

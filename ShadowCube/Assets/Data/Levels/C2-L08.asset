@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: ShadowCube.Core::ShadowCube.Core.LevelData
   width: 6
   depth: 6
-  maxHeight: 3
+  maxHeight: 4
   solution:
   - {x: 0, y: 0, z: 3}
   - {x: 0, y: 0, z: 4}
@@ -23,11 +23,11 @@ MonoBehaviour:
   - {x: 0, y: 1, z: 2}
   - {x: 0, y: 1, z: 3}
   - {x: 0, y: 1, z: 4}
-  - {x: 1, y: 1, z: 2}
   - {x: 1, y: 1, z: 4}
-  - {x: 1, y: 1, z: 5}
-  - {x: 0, y: 2, z: 2}
   - {x: 0, y: 2, z: 3}
+  - {x: 1, y: 2, z: 3}
+  - {x: 1, y: 2, z: 4}
+  - {x: 0, y: 3, z: 3}
   levelId: C2-L08
   levelName: C2-L08
   chapterId: 1
