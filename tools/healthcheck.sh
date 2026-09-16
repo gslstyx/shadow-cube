@@ -2,8 +2,10 @@
 # Shadow Cube 项目体检脚本
 #
 # 用法：
-#   ./tools/healthcheck.sh           # 快速体检（编译 + Git 卫生 + LFS + 文档）
-#   ./tools/healthcheck.sh --build   # 完整体检（额外跑一次联调包构建，约 20~30 分钟）
+#   ./tools/healthcheck.sh             # 快速体检（编译 + 单测 + Git 卫生 + 文档 + 统计台账）
+#   ./tools/healthcheck.sh --build     # 完整体检（额外跑一次联调包构建，约 20~30 分钟）
+#   ./tools/healthcheck.sh --skip-tests  # 只查编译与环境（测试条数沿用上次结果）
+#   ./tools/healthcheck.sh --sync-docs   # 把自动统计值回写文档（测试条数/代码行数/问题条数）
 #
 # 退出码：0=通过  1=存在失败项
 
@@ -12,8 +14,15 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT="$ROOT/ShadowCube"
 UNITY="${UNITY_PATH:-/Applications/Unity/Hub/Editor/6000.3.24f1/Unity.app/Contents/MacOS/Unity}"
-BUILD=0
-[[ "${1:-}" == "--build" ]] && BUILD=1
+BUILD=0; SKIP_TESTS=0; SYNC_DOCS=0
+for arg in "$@"; do
+  case "$arg" in
+    --build)       BUILD=1 ;;
+    --skip-tests)  SKIP_TESTS=1 ;;
+    --sync-docs)   SYNC_DOCS=1 ;;
+  esac
+done
+EDIT_TOTAL=""; PLAY_TOTAL=""
 
 PASS=0; WARN=0; FAIL=0
 ok()   { echo "  ✅ $1"; PASS=$((PASS+1)); }
@@ -52,10 +61,10 @@ fi
 echo
 
 # ── 2.5 单元测试（EditMode）──────────────────────────────────
-if [[ "${1:-}" == "--skip-tests" ]]; then
-  echo "[2.5] 单元测试：跳过（--skip-tests）"
+if (( SKIP_TESTS == 1 )); then
+  echo "[2.5] 单元测试：跳过（--skip-tests，条数沿用上次结果）"
 else
-  echo "[2.5] 单元测试（EditMode）"
+  echo "[2.5] 单元测试（EditMode / PlayMode）"
   if [[ ! -x "$UNITY" ]]; then
     warn "跳过（无 Unity）"
   else
@@ -76,6 +85,7 @@ print(' '.join(m.groups()) if m else '? ? ?')" 2>/dev/null)
       TOTAL=$(echo "$SUMMARY" | awk '{print $1}')
       PASSED=$(echo "$SUMMARY" | awk '{print $2}')
       FAILED=$(echo "$SUMMARY" | awk '{print $3}')
+      if [[ "$PLATFORM" == "EditMode" ]]; then EDIT_TOTAL="$TOTAL"; else PLAY_TOTAL="$TOTAL"; fi
       if [[ "$FAILED" == "0" ]]; then
         ok "$PLATFORM 测试通过 $PASSED/$TOTAL"
       else
@@ -120,9 +130,30 @@ echo
 
 # ── 4. 文档同步 ──────────────────────────────────────────────
 echo "[4] 文档"
-for d in 01_需求文档 02_开发环境文档 03_打包发布流程文档 04_测试文档 05_开发协作约定 06_开发总结; do
+for d in 01_需求文档 02_开发环境文档 03_打包发布流程文档 04_测试文档 \
+         05_开发协作约定 06_开发总结 07_玩法扩展评估 08_AI游戏项目经验沉淀; do
   [[ -f "$ROOT/docs/${d}.md" ]] && ok "${d}.md" || warn "缺少 docs/${d}.md"
 done
+echo
+
+# ── 4.5 统计台账（自动统计，防止手写数字腐化）─────────────────
+# 动机见 docs/08 §4.8：手写汇总表必然过期（本项目已多次出现同一事实多处不一致）
+echo "[4.5] 统计台账"
+if command -v python3 >/dev/null; then
+  STAT_ARGS=(--edit="$EDIT_TOTAL" --play="$PLAY_TOTAL")
+  if (( SYNC_DOCS == 1 )); then
+    python3 "$ROOT/tools/stats.py" --sync "${STAT_ARGS[@]}" | sed 's/^/  /'
+    ok "已回写文档统计标记"
+  else
+    if python3 "$ROOT/tools/stats.py" --check "${STAT_ARGS[@]}" | sed 's/^/  /'; then
+      ok "文档统计值与实测一致"
+    else
+      warn "文档统计值已过期（详见上方差异，执行 --sync-docs 回写）"
+    fi
+  fi
+else
+  warn "未安装 python3，跳过统计台账"
+fi
 echo
 
 # ── 5. 构建（可选）───────────────────────────────────────────

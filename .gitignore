@@ -41,6 +41,10 @@ crashlytics-build.properties
 *.unitypackage
 *.app
 
+# ===== Python（tools/stats.py 等工具脚本）=====
+__pycache__/
+*.py[cod]
+
 # ===== IDE / 系统 =====
 # VS Code：忽略个人工作区文件，但保留团队共享的调试/推荐配置
 .vscode/*
